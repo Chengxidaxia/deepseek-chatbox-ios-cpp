@@ -131,7 +131,7 @@ jobs:
         run: |
           set -uo pipefail
           if [ "${GITHUB_REF#refs/tags/}" != "$GITHUB_REF" ]; then
-            echo "tag 构建：build $BUILD_NUMBER，不推进计数器" | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "tag 构建：build ${BUILD_NUMBER}，不推进计数器" | tee -a "$GITHUB_STEP_SUMMARY"
             python3 scripts/bump-build.py --show | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
