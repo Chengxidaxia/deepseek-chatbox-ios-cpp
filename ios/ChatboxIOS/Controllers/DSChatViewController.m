@@ -19,6 +19,7 @@
 #import "DSTheme.h"
 #import "DSStrings.h"
 #import "DSIcon.h"
+#import "DSTopBarView.h"
 
 #import <PhotosUI/PhotosUI.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
@@ -50,8 +51,8 @@
 @property (nonatomic, strong) UIVisualEffectView *composer;
 @property (nonatomic, strong) UIButton *thinkChip;
 @property (nonatomic, strong) UIButton *searchChip;
-/// 顶栏中间的模型选择（官方 Assets.car 里是 chat/top_bar/modelChoose + modelChooseCheckmark）
-@property (nonatomic, strong) UIButton *modelButton;
+/// 官方顶栏（自绘，不是 UINavigationBar）：☰ / 模型名⌄ / ＋
+@property (nonatomic, strong) DSTopBarView *topBar;
 // 模型 id → 展示名（来自 /models，取不到就用 id 本身）
 @property (nonatomic, strong) NSMutableDictionary<NSString *, NSString *> *modelNames;
 @property (nonatomic, strong) NSArray<NSDictionary *> *modelList;
@@ -105,56 +106,45 @@
   NSDictionary *conv = [[DSBoxService shared] conversationWithId:self.convId];
   self.title = [conv[@"title"] length] ? conv[@"title"] : DSStrNewChatTitle;
   self.view.backgroundColor = [DSTheme bgBase];
-  self.navigationItem.largeTitleDisplayMode = UINavigationItemLargeTitleDisplayModeNever;
 
+  [self buildTopBar];      // 顶栏先建，下面的表格要贴它的底边
   [self buildTableView];
   [self buildWelcome];
   [self buildComposer];
-  [self buildNavigationBar];
-  [self loadModelList];   // 异步取模型名，只影响顶栏的显示，不阻塞进入会话
+  [self loadModelList];    // 异步取模型名，只影响顶栏的显示，不阻塞进入会话
   [self refreshEmptyState];
-
-  self.navigationItem.rightBarButtonItem =
-      [[UIBarButtonItem alloc] initWithImage:[DSIcon image:DSIconNewChat size:22]
-                                       style:UIBarButtonItemStylePlain
-                                      target:self
-                                      action:@selector(newChatHere)];
 
   [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillChange:)
       name:UIKeyboardWillChangeFrameNotification object:nil];
   [self scrollToBottomAnimated:NO];
 }
 
-/// 顶栏按官方资源结构排：左 ☰（`Ic_menu_outline_24`，开会话列表）、
-/// 中间模型选择（`chat/top_bar/modelChoose`，点开是带勾的列表）、右 ＋（新对话）。
-- (void)buildNavigationBar {
-  self.navigationItem.leftBarButtonItem =
-      [[UIBarButtonItem alloc] initWithImage:[DSIcon image:DSIconMenu size:DSIconPointSizeNav]
-                                       style:UIBarButtonItemStylePlain
-                                      target:self
-                                      action:@selector(openSessionList)];
+/// 官方顶栏是自绘的（`chat/top_bar/*`），不走 UINavigationBar：
+/// 左 ☰ 开会话抽屉、中间模型选择、右 ＋ 新对话。
+- (void)buildTopBar {
+  DSTopBarView *bar = [[DSTopBarView alloc] initWithFrame:CGRectZero];
+  [self.view addSubview:bar];
+  _topBar = bar;
 
-  UIButton *b = [UIButton buttonWithType:UIButtonTypeSystem];
-  b.titleLabel.font = [UIFont systemFontOfSize:16 weight:UIFontWeightSemibold];
-  [b setTitleColor:[DSTheme labelPrimary] forState:UIControlStateNormal];
-  [b setImage:[DSIcon image:DSIconChevronDown size:14] forState:UIControlStateNormal];
-  b.tintColor = [DSTheme labelTertiary];
-  // 箭头放右边（官方 modelChoose 是「模型名 ⌄」）
-  b.semanticContentAttribute = UISemanticContentAttributeForceRightToLeft;
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-  b.imageEdgeInsets = UIEdgeInsetsMake(0, 4, 0, -4);
-  b.titleEdgeInsets = UIEdgeInsetsMake(0, -4, 0, 4);
-  b.contentEdgeInsets = UIEdgeInsetsMake(0, 6, 0, 6);
-#pragma clang diagnostic pop
-  [b addTarget:self action:@selector(modelTapped) forControlEvents:UIControlEventTouchUpInside];
-  _modelButton = b;
-  self.navigationItem.titleView = b;
+  __weak __typeof(self) ws = self;
+  bar.onMenu = ^{
+    if (ws.onMenuTap) ws.onMenuTap();
+  };
+  bar.onModel = ^{ [ws modelTapped]; };
+  bar.onNewChat = ^{ [ws newChatHere]; };
+
+  [NSLayoutConstraint activateConstraints:@[
+    [bar.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
+    [bar.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+    [bar.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
+    [bar.heightAnchor constraintEqualToConstant:DSTopBarView.preferredHeight],
+  ]];
   [self refreshChips];   // 先把当前模型名填上，等 /models 回来再刷新成展示名
 }
 
 /// ☰：回到会话列表。直接 push 进来的会话可能不是从列表来的，那就把列表 push 上去。
 - (void)openSessionList {
+  if (self.onMenuTap) { self.onMenuTap(); return; }
   UINavigationController *nav = self.navigationController;
   if (!nav) return;
   for (UIViewController *vc in nav.viewControllers.reverseObjectEnumerator) {
@@ -243,14 +233,17 @@
 }
 
 - (void)buildComposer {
-  UIBlurEffect *blur = [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemChromeMaterial];
-  _composer = [[UIVisualEffectView alloc] initWithEffect:blur];
+  // 官方输入区**没有毛玻璃、也没有分割线**：就是页面底色，输入框本身是一块浅灰圆角。
+  // 之前用 UIBlurEffectStyleSystemChromeMaterial + hairline，是最明显的「不像」来源。
+  _composer = [[UIVisualEffectView alloc] initWithEffect:nil];
   _composer.translatesAutoresizingMaskIntoConstraints = NO;
+  _composer.backgroundColor = [DSTheme bgBase];
   [self.view addSubview:_composer];
 
   UIView *hairline = [[UIView alloc] init];
   hairline.translatesAutoresizingMaskIntoConstraints = NO;
-  hairline.backgroundColor = [DSTheme borderL2];
+  hairline.backgroundColor = UIColor.clearColor;
+  hairline.hidden = YES;   // 保留视图，约束块里还要用
   [_composer.contentView addSubview:hairline];
 
   // ---- 开关 chips：深度思考 / 智能搜索 ----
@@ -358,7 +351,7 @@
   _inputHeight = [_input.heightAnchor constraintEqualToConstant:32];
 
   [NSLayoutConstraint activateConstraints:@[
-    [self.tableView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
+    [self.tableView.topAnchor constraintEqualToAnchor:_topBar.bottomAnchor],
     [self.tableView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
     [self.tableView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
     [self.tableView.bottomAnchor constraintEqualToAnchor:_composer.topAnchor],
@@ -446,6 +439,8 @@
 }
 
 - (void)styleChip:(UIButton *)chip on:(BOOL)on {
+  if (!chip) return;
+  chip.selected = on;   // 本地状态也记一份，回读校验和点击反馈都用它
   if (on) {
     chip.backgroundColor = [[DSTheme brand] colorWithAlphaComponent:0.12];
     [chip setTitleColor:[DSTheme brand] forState:UIControlStateNormal];
@@ -455,6 +450,7 @@
     [chip setTitleColor:[DSTheme labelSecondary] forState:UIControlStateNormal];
     chip.tintColor = [DSTheme labelSecondary];
   }
+  [chip setNeedsDisplay];
 }
 
 - (void)refreshChips {
@@ -463,7 +459,7 @@
   // 官方 2.7.1 已经取消「快速/专家/识图」三档，顶栏直接显示当前模型的展示名，
   // 点开是真实模型列表（/models，取不到就用 id 本身）。
   NSString *title = self.modelNames[model] ?: model;
-  [self.modelButton setTitle:title forState:UIControlStateNormal];
+  self.topBar.modelTitle = title;
   [self applyChipStyles];
 }
 
@@ -682,14 +678,31 @@
   NSDictionary *s = [[DSBoxService shared] settings];
   BOOL v = ![s[@"thinking"] boolValue];
   [[DSBoxService shared] saveSettingsPatch:@{@"thinking": @(v)}];
-  [self refreshChips];
+  // 先按新值上色，不等回读 —— 万一落盘失败，按钮至少给到点击反馈，
+  // 再由 verifyChipState 把「存不进去」打到日志里。
+  [self styleChip:_thinkChip on:v];
+  [self verifyChipState];
 }
 
 - (void)toggleSearch {
   NSDictionary *s = [[DSBoxService shared] settings];
   BOOL v = ![s[@"search"] boolValue];
   [[DSBoxService shared] saveSettingsPatch:@{@"search": @(v), @"readUrl": @(v)}];
-  [self refreshChips];
+  [self styleChip:_searchChip on:v];
+  [self verifyChipState];
+}
+
+/// 回读校验。之前这里出过一个很隐蔽的 bug：ObjC 桥接把 `@(YES)` 当成数字发成 1，
+/// C++ 侧 `j.value<bool>()` 抛 type_error.302，`saveSettings` 整体失败并被 catch 掉，
+/// 于是「开关点了没反应」且毫无提示。现在存不进去会留下这条日志。
+- (void)verifyChipState {
+  NSDictionary *s = [[DSBoxService shared] settings];
+  BOOL thinking = [s[@"thinking"] boolValue];
+  BOOL search = [s[@"search"] boolValue];
+  if (thinking != _thinkChip.selected || search != _searchChip.selected) {
+    NSLog(@"[chip] 状态未落盘：thinking=%d(期望 %d) search=%d(期望 %d)",
+          thinking, _thinkChip.selected, search, _searchChip.selected);
+  }
 }
 
 - (void)modelTapped {
@@ -739,8 +752,8 @@
     }]];
   }
   [sheet addAction:[UIAlertAction actionWithTitle:DSStrCancel style:UIAlertActionStyleCancel handler:nil]];
-  sheet.popoverPresentationController.sourceView = self.modelButton;
-  sheet.popoverPresentationController.sourceRect = self.modelButton.bounds;
+  sheet.popoverPresentationController.sourceView = self.topBar.modelButton;
+  sheet.popoverPresentationController.sourceRect = self.topBar.modelButton.bounds;
   [self presentViewController:sheet animated:YES completion:nil];
 }
 
@@ -937,10 +950,13 @@
 #pragma mark - 新对话
 
 - (void)newChatHere {
+  if (self.onNewChat) { self.onNewChat(); return; }
   NSDictionary *conv = [[DSBoxService shared] createConversation];
   DSChatViewController *vc = [[DSChatViewController alloc] initWithConversationId:conv[@"id"]];
   [self.navigationController pushViewController:vc animated:YES];
 }
+
+- (NSString *)conversationId { return self.convId; }
 
 #pragma mark - UITextViewDelegate
 

@@ -247,6 +247,18 @@ struct Prices {
   }
 };
 
+/// 读布尔字段。**不要直接写 j.value<bool>(k, def)**：只要 JSON 里该字段是 0/1
+/// （历史上 ObjC 桥接把 @(YES) 当数字发过、或外部导入的数据），nlohmann 会抛
+/// type_error.302，而且是在 Settings::fromJson 里抛 —— 一份字段坏掉，整份设置都读不出来。
+/// 这里对数字做容忍，布尔语义不变。
+inline bool jsonBool(const json& j, const char* key, bool fallback) {
+  auto it = j.find(key);
+  if (it == j.end() || it->is_null()) return fallback;
+  if (it->is_boolean()) return it->get<bool>();
+  if (it->is_number()) return it->get<double>() != 0.0;
+  return fallback;
+}
+
 struct Settings {
   std::string baseUrl = "https://api.deepseek.com";
   std::string model = "deepseek-flash";
@@ -304,12 +316,12 @@ struct Settings {
     Settings s;
     s.baseUrl = j.value("baseUrl", s.baseUrl);
     s.model = j.value("model", s.model);
-    s.thinking = j.value("thinking", s.thinking);
+    s.thinking = jsonBool(j, "thinking", s.thinking);
     s.effort = j.value("effort", s.effort);
-    s.search = j.value("search", s.search);
-    s.readUrl = j.value("readUrl", s.readUrl);
-    s.safety = j.value("safety", s.safety);
-    s.jsonMode = j.value("jsonMode", s.jsonMode);
+    s.search = jsonBool(j, "search", s.search);
+    s.readUrl = jsonBool(j, "readUrl", s.readUrl);
+    s.safety = jsonBool(j, "safety", s.safety);
+    s.jsonMode = jsonBool(j, "jsonMode", s.jsonMode);
     s.temperature = j.value("temperature", s.temperature);
     if (j.contains("topP") && j["topP"].is_number()) s.topP = j["topP"].get<double>();
     if (j.contains("maxTokens") && j["maxTokens"].is_number()) s.maxTokens = j["maxTokens"].get<int64_t>();
@@ -318,24 +330,24 @@ struct Settings {
     s.userId = j.value("userId", s.userId);
     if (j.contains("reminder")) {
       const auto& r = j["reminder"];
-      s.reminderEnabled = r.value("enabled", s.reminderEnabled);
+      s.reminderEnabled = jsonBool(r, "enabled", s.reminderEnabled);
       s.reminderLocation = r.value("location", s.reminderLocation);
       s.reminderLanguage = r.value("language", s.reminderLanguage);
     }
     s.theme = j.value("theme", s.theme);
     s.lang = j.value("lang", s.lang);
-    s.mock = j.value("mock", s.mock);
+    s.mock = jsonBool(j, "mock", s.mock);
     s.docLayout = j.value("docLayout", s.docLayout);
     s.ttsVoice = j.value("ttsVoice", s.ttsVoice);
-    s.autoTitle = j.value("autoTitle", s.autoTitle);
-    s.stream = j.value("stream", s.stream);
-    s.localTools = j.value("localTools", s.localTools);
-    s.cmdEnabled = j.value("cmdEnabled", s.cmdEnabled);
+    s.autoTitle = jsonBool(j, "autoTitle", s.autoTitle);
+    s.stream = jsonBool(j, "stream", s.stream);
+    s.localTools = jsonBool(j, "localTools", s.localTools);
+    s.cmdEnabled = jsonBool(j, "cmdEnabled", s.cmdEnabled);
     s.toolTopK = j.value("toolTopK", s.toolTopK);
     s.searchMode = j.value("searchMode", s.searchMode);
     s.peakMode = j.value("peakMode", s.peakMode);
     s.contextLimit = j.value("contextLimit", s.contextLimit);
-    s.hasKey = j.value("hasKey", s.hasKey);
+    s.hasKey = jsonBool(j, "hasKey", s.hasKey);
     s.keyPreview = j.value("keyPreview", s.keyPreview);
     if (j.contains("prices")) s.prices = Prices::fromJson(j["prices"]);
     return s;
@@ -348,7 +360,7 @@ struct UIState {
   json toJson() const { return {{"sidebarCollapsed", sidebarCollapsed}, {"activeId", activeId}}; }
   static UIState fromJson(const json& j) {
     UIState u;
-    u.sidebarCollapsed = j.value("sidebarCollapsed", false);
+    u.sidebarCollapsed = jsonBool(j, "sidebarCollapsed", false);
     u.activeId = j.value("activeId", "");
     return u;
   }

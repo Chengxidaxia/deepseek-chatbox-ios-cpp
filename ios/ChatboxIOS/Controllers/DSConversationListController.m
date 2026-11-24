@@ -12,6 +12,7 @@
 #import "DSSettingsViewController.h"
 #import "DSTheme.h"
 #import "DSStrings.h"
+#import "DSIcon.h"
 
 @interface DSConversationListController () <UITableViewDataSource, UITableViewDelegate,
     UISearchResultsUpdating>
@@ -23,15 +24,35 @@
 @property (nonatomic, strong) UIView *emptyView;
 @property (nonatomic, strong) UILabel *emptyTitle;
 @property (nonatomic, strong) UILabel *emptyDesc;
+// 抽屉模式自带的四段：开启新对话 / 搜索 / 列表 / 设置
+@property (nonatomic, strong) UIView *drawerHeader;
+@property (nonatomic, strong) UIView *drawerFooter;
+@property (nonatomic, strong) UITextField *searchField;
 @end
 
 @implementation DSConversationListController
 
 - (void)viewDidLoad {
   [super viewDidLoad];
-  self.title = @"DeepSeek Chatbox";
   self.view.backgroundColor = [DSTheme bgBase];
 
+  if (self.drawerMode) {
+    // 官方会话列表是**抽屉**（SidebarViewController 里的 SessionListViewController），
+    // 没有导航栏：自己带「开启新对话 / 搜索 / 列表 / 设置」四段。
+    [self buildDrawerHeader];
+    [self buildDrawerFooter];
+  } else {
+    [self setupNavigationMode];
+  }
+
+  [self buildTable];
+  [self buildEmptyView];
+  [self reload];
+}
+
+/// 独立页模式（老路径）：导航栏 + 系统搜索控制器
+- (void)setupNavigationMode {
+  self.title = @"DeepSeek Chatbox";
   self.navigationItem.leftBarButtonItem =
       [[UIBarButtonItem alloc] initWithTitle:DSStrSettings
                                        style:UIBarButtonItemStylePlain
@@ -49,32 +70,156 @@
   self.navigationItem.searchController = self.search;
   self.navigationItem.hidesSearchBarWhenScrolling = NO;
   self.definesPresentationContext = YES;
+}
 
+/// 抽屉顶部：开启新对话 + 搜索框
+- (void)buildDrawerHeader {
+  UIView *header = [[UIView alloc] init];
+  header.translatesAutoresizingMaskIntoConstraints = NO;
+  [self.view addSubview:header];
+  _drawerHeader = header;
+
+  UIButton *newChat = [UIButton buttonWithType:UIButtonTypeSystem];
+  newChat.translatesAutoresizingMaskIntoConstraints = NO;
+  newChat.contentHorizontalAlignment = UIControlContentHorizontalAlignmentLeft;
+  [newChat setTitle:DSStrStartNewChat forState:UIControlStateNormal];   // sessionListNewChatButton
+  newChat.titleLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightMedium];
+  [newChat setTitleColor:[DSTheme labelPrimary] forState:UIControlStateNormal];
+  [newChat setImage:[DSIcon image:DSIconPlus size:DSIconPointSizeAction] forState:UIControlStateNormal];
+  newChat.tintColor = [DSTheme labelPrimary];
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+  newChat.imageEdgeInsets = UIEdgeInsetsMake(0, -2, 0, 2);
+  newChat.titleEdgeInsets = UIEdgeInsetsMake(0, 2, 0, -2);
+  newChat.contentEdgeInsets = UIEdgeInsetsMake(0, 4, 0, 4);
+#pragma clang diagnostic pop
+  [newChat addTarget:self action:@selector(newChat) forControlEvents:UIControlEventTouchUpInside];
+  [header addSubview:newChat];
+
+  // 搜索框：浅灰圆角 + 放大镜，官方 SessionListSearchBarView 同形态
+  UITextField *field = [[UITextField alloc] init];
+  field.translatesAutoresizingMaskIntoConstraints = NO;
+  field.placeholder = DSStrSearchHint;   // searchHint = 搜索对话内容...
+  field.font = [UIFont systemFontOfSize:14];
+  field.textColor = [DSTheme labelPrimary];
+  field.backgroundColor = [DSTheme bgHover];
+  field.layer.cornerRadius = 10;
+  field.layer.cornerCurve = kCACornerCurveContinuous;
+  field.clearButtonMode = UITextFieldViewModeWhileEditing;
+  field.returnKeyType = UIReturnKeySearch;
+  [field addTarget:self action:@selector(searchChanged:) forControlEvents:UIControlEventEditingChanged];
+
+  UIView *pad = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 32, 36)];
+  UIImageView *mag = [[UIImageView alloc] initWithImage:[DSIcon image:DSIconSearch size:16]];
+  mag.tintColor = [DSTheme labelTertiary];
+  mag.frame = CGRectMake(10, 10, 16, 16);
+  [pad addSubview:mag];
+  field.leftView = pad;
+  field.leftViewMode = UITextFieldViewModeAlways;
+  [header addSubview:field];
+  _searchField = field;
+
+  [NSLayoutConstraint activateConstraints:@[
+    [header.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
+    [header.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+    [header.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
+
+    [newChat.topAnchor constraintEqualToAnchor:header.topAnchor constant:4],
+    [newChat.leadingAnchor constraintEqualToAnchor:header.leadingAnchor constant:12],
+    [newChat.trailingAnchor constraintEqualToAnchor:header.trailingAnchor constant:-12],
+    [newChat.heightAnchor constraintEqualToConstant:44],
+
+    [field.topAnchor constraintEqualToAnchor:newChat.bottomAnchor constant:4],
+    [field.leadingAnchor constraintEqualToAnchor:header.leadingAnchor constant:16],
+    [field.trailingAnchor constraintEqualToAnchor:header.trailingAnchor constant:-16],
+    [field.heightAnchor constraintEqualToConstant:36],
+    [field.bottomAnchor constraintEqualToAnchor:header.bottomAnchor constant:-8],
+  ]];
+}
+
+/// 抽屉底部：设置入口
+- (void)buildDrawerFooter {
+  UIView *footer = [[UIView alloc] init];
+  footer.translatesAutoresizingMaskIntoConstraints = NO;
+  [self.view addSubview:footer];
+  _drawerFooter = footer;
+
+  UIView *line = [[UIView alloc] init];
+  line.translatesAutoresizingMaskIntoConstraints = NO;
+  line.backgroundColor = [DSTheme borderL2];
+  [footer addSubview:line];
+
+  UIButton *settings = [UIButton buttonWithType:UIButtonTypeSystem];
+  settings.translatesAutoresizingMaskIntoConstraints = NO;
+  settings.contentHorizontalAlignment = UIControlContentHorizontalAlignmentLeft;
+  [settings setTitle:DSStrSettings forState:UIControlStateNormal];   // profileTitle = 设置
+  settings.titleLabel.font = [UIFont systemFontOfSize:15];
+  [settings setTitleColor:[DSTheme labelPrimary] forState:UIControlStateNormal];
+  [settings setImage:[DSIcon image:DSIconUserCircle size:DSIconPointSizeAction] forState:UIControlStateNormal];
+  settings.tintColor = [DSTheme labelSecondary];
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+  settings.imageEdgeInsets = UIEdgeInsetsMake(0, -2, 0, 2);
+  settings.titleEdgeInsets = UIEdgeInsetsMake(0, 2, 0, -2);
+  settings.contentEdgeInsets = UIEdgeInsetsMake(0, 4, 0, 4);
+#pragma clang diagnostic pop
+  [settings addTarget:self action:@selector(openSettings) forControlEvents:UIControlEventTouchUpInside];
+  [footer addSubview:settings];
+
+  [NSLayoutConstraint activateConstraints:@[
+    [footer.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+    [footer.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
+    [footer.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor],
+
+    [line.topAnchor constraintEqualToAnchor:footer.topAnchor],
+    [line.leadingAnchor constraintEqualToAnchor:footer.leadingAnchor constant:16],
+    [line.trailingAnchor constraintEqualToAnchor:footer.trailingAnchor constant:-16],
+    [line.heightAnchor constraintEqualToConstant:0.5],
+
+    [settings.topAnchor constraintEqualToAnchor:line.bottomAnchor constant:4],
+    [settings.leadingAnchor constraintEqualToAnchor:footer.leadingAnchor constant:12],
+    [settings.trailingAnchor constraintEqualToAnchor:footer.trailingAnchor constant:-12],
+    [settings.heightAnchor constraintEqualToConstant:46],
+    [settings.bottomAnchor constraintEqualToAnchor:footer.bottomAnchor constant:-6],
+  ]];
+}
+
+- (void)buildTable {
   self.tableView = [[UITableView alloc] initWithFrame:CGRectZero style:UITableViewStylePlain];
   self.tableView.translatesAutoresizingMaskIntoConstraints = NO;
   self.tableView.dataSource = self;
   self.tableView.delegate = self;
-  self.tableView.rowHeight = 64;
+  self.tableView.rowHeight = self.drawerMode ? 52 : 64;
   self.tableView.backgroundColor = [DSTheme bgBase];
-  self.tableView.separatorInset = UIEdgeInsetsMake(0, [DSTheme messageListPadding], 0, 0);
+  self.tableView.separatorInset = UIEdgeInsetsMake(0, self.drawerMode ? 16 : [DSTheme messageListPadding], 0, 0);
   self.tableView.keyboardDismissMode = UIScrollViewKeyboardDismissModeOnDrag;
   [self.view addSubview:self.tableView];
 
+  NSLayoutYAxisAnchor *top = self.drawerMode ? _drawerHeader.bottomAnchor
+                                             : self.view.safeAreaLayoutGuide.topAnchor;
+  NSLayoutYAxisAnchor *bottom = self.drawerMode ? _drawerFooter.topAnchor : self.view.bottomAnchor;
   [NSLayoutConstraint activateConstraints:@[
-    [self.tableView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
+    [self.tableView.topAnchor constraintEqualToAnchor:top],
     [self.tableView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
     [self.tableView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
-    [self.tableView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
+    [self.tableView.bottomAnchor constraintEqualToAnchor:bottom],
   ]];
-
-  [self buildEmptyView];
-  [self reload];
 }
 
 - (void)viewWillAppear:(BOOL)animated {
   [super viewWillAppear:animated];
-  [self.navigationController setNavigationBarHidden:NO animated:animated];
+  if (!self.drawerMode) [self.navigationController setNavigationBarHidden:NO animated:animated];
   [self reload];
+}
+
+/// 当前搜索词：两种模式共用
+- (NSString *)currentQuery {
+  if (self.drawerMode) return self.searchField.text ?: @"";
+  return self.search.searchBar.text ?: @"";
+}
+
+- (void)searchChanged:(UITextField *)field {
+  [self applyFilter:field.text ?: @""];
 }
 
 #pragma mark - 空态
@@ -142,7 +287,7 @@
     if (pa != pb) return pa ? NSOrderedAscending : NSOrderedDescending;
     return [b[@"updatedAt"] compare:a[@"updatedAt"]];
   }];
-  [self applyFilter:self.search.searchBar.text ?: @""];
+  [self applyFilter:[self currentQuery]];
 }
 
 - (void)applyFilter:(NSString *)query {
@@ -205,7 +350,7 @@
 }
 
 - (void)updateEmptyState {
-  BOOL searching = (self.search.searchBar.text ?: @"").length > 0;
+  BOOL searching = [self currentQuery].length > 0;
   BOOL empty = self.filtered.count == 0;
   self.emptyView.hidden = !empty;
   self.tableView.hidden = empty;
@@ -221,6 +366,7 @@
 #pragma mark - 操作
 
 - (void)newChat {
+  if (self.onNewChat) { self.onNewChat(); return; }
   NSDictionary *conv = [[DSBoxService shared] createConversation];
   [self reload];
   DSChatViewController *chat = [[DSChatViewController alloc] initWithConversationId:conv[@"id"]];
@@ -228,6 +374,7 @@
 }
 
 - (void)openSettings {
+  if (self.onOpenSettings) { self.onOpenSettings(); return; }
   DSSettingsViewController *vc = [[DSSettingsViewController alloc] init];
   [self.navigationController pushViewController:vc animated:YES];
 }
@@ -274,6 +421,7 @@
   [tableView deselectRowAtIndexPath:indexPath animated:YES];
   NSArray *list = self.sections[indexPath.section][@"items"];
   NSDictionary *c = list[indexPath.row];
+  if (self.onSelectConversation) { self.onSelectConversation(c[@"id"]); return; }
   DSChatViewController *chat = [[DSChatViewController alloc] initWithConversationId:c[@"id"]];
   [self.navigationController pushViewController:chat animated:YES];
 }

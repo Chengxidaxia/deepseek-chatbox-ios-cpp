@@ -19,9 +19,19 @@
 - (void)viewDidLoad {
   [super viewDidLoad];
   self.title = @"设置";
+  // 现在是从抽屉里以模态弹出的（官方也是从侧栏进设置），没有导航栈的返回键，自己补一个关闭。
+  self.navigationItem.rightBarButtonItem =
+      [[UIBarButtonItem alloc] initWithTitle:DSStrOK
+                                       style:UIBarButtonItemStyleDone
+                                      target:self
+                                      action:@selector(closeSelf)];
   [self.tableView registerClass:UITableViewCell.class forCellReuseIdentifier:@"s"];
   self.tableView.tableFooterView = [UIView new];
   [self reload];
+}
+
+- (void)closeSelf {
+  [self dismissViewControllerAnimated:YES completion:nil];
 }
 
 - (void)reload {

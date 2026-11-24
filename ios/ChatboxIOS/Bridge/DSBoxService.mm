@@ -57,8 +57,13 @@ static json ToJson(id obj) {
   if ([obj isKindOfClass:NSString.class]) return StdStr((NSString *)obj);
   if ([obj isKindOfClass:NSNumber.class]) {
     NSNumber *n = (NSNumber *)obj;
-    // 区分布尔与数字：ObjC 里 __NSCFBoolean / __NSCFNumber
-    if (strcmp([n objCType], @encode(BOOL)) == 0) return (bool)n.boolValue;
+    // 判布尔**不能**用 objCType 去比 @encode(BOOL)：
+    // arm64 上 BOOL 就是 C++ 的 bool，@encode(BOOL) == "B"；而 @(YES) 生成的是
+    // __NSCFBoolean，objCType 是 "c"。比不出来就会被当成数字发成 0/1，
+    // C++ 侧 Settings::fromJson 的 j.value<bool>() 随即抛 type_error.302，
+    // 于是 Store::saveSettings 整体失败 —— 表现就是「开关点了没反应」。
+    // CFBoolean 的类型 ID 才是唯一可靠的判据。
+    if (CFGetTypeID((__bridge CFTypeRef)n) == CFBooleanGetTypeID()) return (bool)n.boolValue;
     return n.longLongValue;
   }
   if ([obj isKindOfClass:NSArray.class]) {

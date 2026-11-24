@@ -114,6 +114,20 @@ int main() {
     st.saveSettings({{"model","deepseek-reasoner"},{"toolTopK",12}});
     CHECK(st.settings().model == "deepseek-reasoner" && st.settings().toolTopK == 12, "保存设置");
 
+    // 布尔补丁必须能存进去。iOS 桥接曾经把 @(YES) 当数字发成 1，
+    // Settings::fromJson 的 j.value<bool>() 直接抛 type_error.302，
+    // saveSettings 整体失败被 catch 掉 —— 表现就是「开关点了没反应」。
+    st.saveSettings({{"search", true}, {"thinking", false}});
+    CHECK(st.settings().search && !st.settings().thinking, "布尔设置保存后读回");
+
+    // 就算真被写成 0/1（旧数据、外部导入），也要能读出来而不是抛异常
+    st.saveSettings({{"search", 1}, {"readUrl", 0}});
+    CHECK(st.settings().search && !st.settings().readUrl, "布尔被写成 0/1 时仍能读回");
+
+    // 关掉再打开，确认落盘往返
+    st.saveSettings({{"search", false}});
+    CHECK(!st.settings().search, "布尔设置可关闭");
+
     std::vector<unsigned char> blob = {'P','N','G',0,1,2};
     std::string aid = st.putAttachment("a.png", "image/png", blob);
     auto att = st.getAttachment(aid);

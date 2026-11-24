@@ -1,6 +1,7 @@
 #import "AppDelegate.h"
 #import "DSBoxService.h"
 #import "DSConversationListController.h"
+#import "DSRootViewController.h"
 #import "DSTheme.h"
 #import <UserNotifications/UserNotifications.h>
 #include <fcntl.h>
@@ -142,22 +143,12 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     NSLog(@"存储打开失败: %@", err.localizedDescription);
   }
 
-  DSConversationListController *list = [[DSConversationListController alloc] init];
-  UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:list];
-  if (@available(iOS 15.0, *)) {
-    // 官方顶栏与页面同色、无分割线、无投影：内容从下面滚过去时看不出边界。
-    UINavigationBarAppearance *app = [UINavigationBarAppearance new];
-    [app configureWithOpaqueBackground];
-    app.backgroundColor = [DSTheme bgBase];
-    app.shadowColor = UIColor.clearColor;
-    app.titleTextAttributes = @{NSForegroundColorAttributeName: [DSTheme labelPrimary]};
-    nav.navigationBar.standardAppearance = app;
-    nav.navigationBar.scrollEdgeAppearance = app;
-    nav.navigationBar.compactAppearance = app;
-  }
+  // 官方结构是 RootViewController + SidebarViewController：聊天页常驻，
+  // 会话列表是从左侧滑出的抽屉。这里直接用 DSRootViewController 做根。
+  DSRootViewController *root = [[DSRootViewController alloc] initWithConversationId:nil];
 
   self.window = [[UIWindow alloc] initWithFrame:UIScreen.mainScreen.bounds];
-  self.window.rootViewController = nav;
+  self.window.rootViewController = root;
   [self.window makeKeyAndVisible];
 
   [self showLastCrashIfAny];

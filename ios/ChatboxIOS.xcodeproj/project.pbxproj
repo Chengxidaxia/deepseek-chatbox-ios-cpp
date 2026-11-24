@@ -24,6 +24,8 @@
 		D0D83AABD22CF68964F5290E /* DSIcon.m in Sources */ = {isa = PBXBuildFile; fileRef = 5BD3CDE4AC44E57601314589 /* DSIcon.m */; };
 		A1B2C3D4E5F60718293A4B02 /* DSIconAssets.m in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B01 /* DSIconAssets.m */; };
 		A1B2C3D4E5F60718293A4B05 /* DSSVGIcon.m in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B04 /* DSSVGIcon.m */; };
+		B2C3D4E5F60718293A4B4C02 /* DSRootViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F60718293A4B4C01 /* DSRootViewController.m */; };
+		B2C3D4E5F60718293A4B4C05 /* DSTopBarView.m in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F60718293A4B4C04 /* DSTopBarView.m */; };
 		01254C7FCCDF46E8356C958C /* store.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 94547846DA3EF6DC5D13E641 /* store.cpp */; };
 		30B6AF5094CD7D0C3386FE1B /* api.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE40ECFBB45B50CBB7FB3889 /* api.cpp */; };
 		EED3B72F2AC8DD8EBC0AC925 /* tools.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E96DC8B3664B9C9BCF2671FC /* tools.cpp */; };
@@ -57,6 +59,10 @@
 		A1B2C3D4E5F60718293A4B03 /* DSIconAssets.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Supporting/DSIconAssets.h; sourceTree = SOURCE_ROOT; };
 		A1B2C3D4E5F60718293A4B04 /* DSSVGIcon.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Supporting/DSSVGIcon.m; sourceTree = SOURCE_ROOT; };
 		A1B2C3D4E5F60718293A4B06 /* DSSVGIcon.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Supporting/DSSVGIcon.h; sourceTree = SOURCE_ROOT; };
+		B2C3D4E5F60718293A4B4C01 /* DSRootViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Controllers/DSRootViewController.m; sourceTree = SOURCE_ROOT; };
+		B2C3D4E5F60718293A4B4C03 /* DSRootViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Controllers/DSRootViewController.h; sourceTree = SOURCE_ROOT; };
+		B2C3D4E5F60718293A4B4C04 /* DSTopBarView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Views/DSTopBarView.m; sourceTree = SOURCE_ROOT; };
+		B2C3D4E5F60718293A4B4C06 /* DSTopBarView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Views/DSTopBarView.h; sourceTree = SOURCE_ROOT; };
 		94547846DA3EF6DC5D13E641 /* store.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ../core/src/store.cpp; sourceTree = SOURCE_ROOT; };
 		BE40ECFBB45B50CBB7FB3889 /* api.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ../core/src/api.cpp; sourceTree = SOURCE_ROOT; };
 		E96DC8B3664B9C9BCF2671FC /* tools.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ../tools/src/tools.cpp; sourceTree = SOURCE_ROOT; };
@@ -180,6 +186,8 @@
 				75EA75C8DCD0E64F7C5C4395 /* DSConversationListController.h */,
 				6577AB37B4F1D9B514FFF84A /* DSChatViewController.h */,
 				11BB72FDD76081FB1BA40776 /* DSSettingsViewController.h */,
+				B2C3D4E5F60718293A4B4C01 /* DSRootViewController.m */,
+				B2C3D4E5F60718293A4B4C03 /* DSRootViewController.h */,
 			);
 			name = Controllers;
 			sourceTree = "<group>";
@@ -199,6 +207,8 @@
 				E33152CD8C7EB3D4CF8DD067 /* DSAttachmentPanel.h */,
 				C5FC962F89D04FE0FC7DDD17 /* DSVoiceRecorder.h */,
 				5453AB1D557E178C0DC2ED4C /* DSVoiceOverlay.h */,
+				B2C3D4E5F60718293A4B4C04 /* DSTopBarView.m */,
+				B2C3D4E5F60718293A4B4C06 /* DSTopBarView.h */,
 			);
 			name = Views;
 			sourceTree = "<group>";
@@ -347,6 +357,8 @@
 				D0D83AABD22CF68964F5290E /* DSIcon.m in Sources */,
 				A1B2C3D4E5F60718293A4B02 /* DSIconAssets.m in Sources */,
 				A1B2C3D4E5F60718293A4B05 /* DSSVGIcon.m in Sources */,
+				B2C3D4E5F60718293A4B4C02 /* DSRootViewController.m in Sources */,
+				B2C3D4E5F60718293A4B4C05 /* DSTopBarView.m in Sources */,
 				01254C7FCCDF46E8356C958C /* store.cpp in Sources */,
 				30B6AF5094CD7D0C3386FE1B /* api.cpp in Sources */,
 				EED3B72F2AC8DD8EBC0AC925 /* tools.cpp in Sources */,
