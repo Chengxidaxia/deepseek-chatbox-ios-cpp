@@ -41,11 +41,23 @@ struct Message {
   std::optional<int64_t> promptTokens;
   std::optional<int64_t> completionTokens;
 
+  // ---- 工具 / 引用（对照 Web 版同名驼峰字段）----
+  json serverToolCalls;      // 服务端工具调用（联网搜索），SSE 原样透传
+  json annotations;          // 引用来源
+  bool toolOk = true;        // role=tool：执行是否成功
+  int64_t toolMs = 0;        // role=tool：耗时毫秒
+
+  // 未识别的键原样保留（UI 层附加数据，如分支候选 branches）。
+  // 不做透传的话，updateConversation 重建 JSON 时这些字段会被丢掉。
+  json extra;
+
   json toJson() const {
-    json j = {
-      {"id", id}, {"role", role}, {"content", content},
-      {"createdAt", createdAt},
-    };
+    // 先铺开 extra，再用已知字段覆盖，保证已知字段永远以结构体为准
+    json j = (extra.is_object() && !extra.empty()) ? extra : json::object();
+    j["id"] = id;
+    j["role"] = role;
+    j["content"] = content;
+    j["createdAt"] = createdAt;
     if (!reasoning.empty()) j["reasoning"] = reasoning;
     if (!toolCallId.empty()) j["tool_call_id"] = toolCallId;
     if (!name.empty()) j["name"] = name;
@@ -65,6 +77,13 @@ struct Message {
                        {"mime", a.mime}, {"size", a.size}, {"dataUrl", a.dataUrl}});
       }
       j["attachments"] = arr;
+    }
+    // serverToolCalls / annotations 允许是空数组（清空语义），用 is_null 判断是否写入
+    if (!serverToolCalls.is_null()) j["server_tool_calls"] = serverToolCalls;
+    if (!annotations.is_null()) j["annotations"] = annotations;
+    if (role == "tool") {
+      j["toolOk"] = toolOk;
+      j["toolMs"] = toolMs;
     }
     return j;
   }
@@ -98,6 +117,24 @@ struct Message {
         });
       }
     }
+    if (j.contains("server_tool_calls")) m.serverToolCalls = j["server_tool_calls"];
+    if (j.contains("annotations")) m.annotations = j["annotations"];
+    m.toolOk = j.value("toolOk", true);
+    m.toolMs = j.value("toolMs", (int64_t)0);
+    // 未识别字段进 extra（例如 UI 层的 branches / altIndex），保证回存时不丢
+    static const char* known[] = {
+      "id", "role", "content", "reasoning", "tool_call_id", "name", "createdAt",
+      "prompt_tokens", "completion_tokens", "tool_calls", "attachments",
+      "server_tool_calls", "annotations", "toolOk", "toolMs",
+    };
+    for (auto it = j.begin(); it != j.end(); ++it) {
+      bool hit = false;
+      for (const char* k : known) if (it.key() == k) { hit = true; break; }
+      if (!hit) {
+        if (m.extra.is_null()) m.extra = json::object();
+        m.extra[it.key()] = it.value();
+      }
+    }
     return m;
   }
 };
@@ -112,15 +149,19 @@ struct Conversation {
   bool pinned = false;
   std::string groupId;
   std::vector<Message> messages;
+  json extra;              // 未识别字段透传（UI 层附加数据）
 
   json toJson() const {
     json arr = json::array();
     for (const auto& m : messages) arr.push_back(m.toJson());
-    json j = {
-      {"id", id}, {"uuid", uuid}, {"title", title},
-      {"createdAt", createdAt}, {"updatedAt", updatedAt},
-      {"pinned", pinned}, {"messages", arr},
-    };
+    json j = (extra.is_object() && !extra.empty()) ? extra : json::object();
+    j["id"] = id;
+    j["uuid"] = uuid;
+    j["title"] = title;
+    j["createdAt"] = createdAt;
+    j["updatedAt"] = updatedAt;
+    j["pinned"] = pinned;
+    j["messages"] = arr;
     if (!groupId.empty()) j["groupId"] = groupId;
     return j;
   }
@@ -136,6 +177,17 @@ struct Conversation {
     c.groupId = j.value("groupId", "");
     if (j.contains("messages") && j["messages"].is_array()) {
       for (const auto& m : j["messages"]) c.messages.push_back(Message::fromJson(m));
+    }
+    static const char* known[] = {
+      "id", "uuid", "title", "createdAt", "updatedAt", "pinned", "groupId", "messages",
+    };
+    for (auto it = j.begin(); it != j.end(); ++it) {
+      bool hit = false;
+      for (const char* k : known) if (it.key() == k) { hit = true; break; }
+      if (!hit) {
+        if (c.extra.is_null()) c.extra = json::object();
+        c.extra[it.key()] = it.value();
+      }
     }
     return c;
   }

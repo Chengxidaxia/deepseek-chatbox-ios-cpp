@@ -6,14 +6,20 @@ NS_ASSUME_NONNULL_BEGIN
 typedef NS_ENUM(NSInteger, DSBoxStreamEventType) {
   DSBoxStreamEventContent = 0,      ///< 正文增量，text 携带片段
   DSBoxStreamEventReasoning = 1,    ///< 思考增量，text 携带片段
-  DSBoxStreamEventToolCall = 2,     ///< 工具调用，data 携带 name/arguments
+  DSBoxStreamEventToolCall = 2,     ///< 模型发起的本地工具调用增量，data 为 tool_calls 数组
   DSBoxStreamEventUsage = 3,        ///< token 用量，data 携带 prompt/completion
   DSBoxStreamEventTitle = 4,        ///< 自动生成标题，text 携带标题
   DSBoxStreamEventRefusal = 5,      ///< 拒答，text 携带原因
-  DSBoxStreamEventServerTool = 6,   ///< 服务端工具调用（web_search 等）
-  DSBoxStreamEventFinish = 7,       ///< 本轮完成，data 携带 finish_reason
-  DSBoxStreamEventDone = 8,         ///< 流结束
+  DSBoxStreamEventServerTool = 6,   ///< 服务端工具调用（web_search 等），data 为 server_tool_calls 数组
+  DSBoxStreamEventFinish = 7,       ///< 本轮完成，text 携带 finish_reason
+  DSBoxStreamEventDone = 8,         ///< 单次 HTTP 流结束（多轮工具循环中每轮都会出现）
   DSBoxStreamEventError = 9,        ///< 错误，text 携带友好错误信息
+  // ---- 多轮工具循环（对齐官方 Fragment 序列：思考 → 该轮工具 → 下一轮…）----
+  DSBoxStreamEventRound = 10,       ///< 新一轮回答开始，data {round}
+  DSBoxStreamEventRoundEnd = 11,    ///< 本轮 assistant 定稿，data 为该消息（含 tool_calls / server_tool_calls / usage）
+  DSBoxStreamEventToolStart = 12,   ///< 本地工具开始执行，data {id,name,args,label,kind,query}
+  DSBoxStreamEventToolEnd = 13,     ///< 本地工具执行结束，data {id,name,ok,text,ms,images}
+  DSBoxStreamEventAnnotations = 14, ///< 引用来源，data 为 annotations 数组
 };
 
 @protocol DSBoxChatDelegate <NSObject>
@@ -47,9 +53,26 @@ typedef NS_ENUM(NSInteger, DSBoxStreamEventType) {
 - (void)clearConversations;
 /// 追加一条消息到会话（user/assistant 通用），返回带 id 的消息
 - (NSDictionary *)appendMessage:(NSDictionary *)message toConversation:(NSString *)convId;
+/// 批量追加（一次写盘，避免多轮工具消息产生多次全量更新）
+- (NSArray<NSDictionary *> *)appendMessages:(NSArray<NSDictionary *> *)messages
+                             toConversation:(NSString *)convId;
+/// 按 id 更新一条消息的若干字段（用于分支候选、工具结果回填等）
+- (BOOL)updateMessageWithId:(NSString *)msgId
+             inConversation:(NSString *)convId
+                      patch:(NSDictionary *)patch;
+/// 用给定消息数组整体替换会话消息（分支切换 / 重新生成后的落盘）
+- (BOOL)replaceMessages:(NSArray<NSDictionary *> *)messages
+         inConversation:(NSString *)convId;
 /// 整条会话快照导入导出
 - (NSDictionary *)exportSnapshot;
 - (BOOL)importSnapshot:(NSDictionary *)snap error:(NSError **)error;
+
+#pragma mark - 附件
+/// 把文件内容存进本地库，返回附件 id（att_xxx）
+- (NSString *)putAttachmentData:(NSData *)data
+                       filename:(NSString *)filename
+                           mime:(NSString *)mime;
+- (nullable NSData *)attachmentDataWithId:(NSString *)attId;
 
 #pragma mark - 设置 / UI
 - (NSDictionary *)settings;

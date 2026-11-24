@@ -24,8 +24,14 @@ OBJC_SOURCES = [
     'ios/ChatboxIOS/Controllers/DSChatViewController.m',
     'ios/ChatboxIOS/Controllers/DSSettingsViewController.mm',
     'ios/ChatboxIOS/Views/DSMessageCell.m',
+    'ios/ChatboxIOS/Views/DSTurn.m',
+    'ios/ChatboxIOS/Views/DSFragmentView.m',
+    'ios/ChatboxIOS/Views/DSAttachmentPanel.m',
+    'ios/ChatboxIOS/Views/DSVoiceRecorder.m',
+    'ios/ChatboxIOS/Views/DSVoiceOverlay.m',
     'ios/ChatboxIOS/Supporting/DSTheme.m',
     'ios/ChatboxIOS/Supporting/DSStrings.m',
+    'ios/ChatboxIOS/Supporting/DSIcon.m',
 ]
 CPP_SOURCES = [
     'core/src/store.cpp',
@@ -43,8 +49,14 @@ HEADERS = [
     'ios/ChatboxIOS/Controllers/DSChatViewController.h',
     'ios/ChatboxIOS/Controllers/DSSettingsViewController.h',
     'ios/ChatboxIOS/Views/DSMessageCell.h',
+    'ios/ChatboxIOS/Views/DSTurn.h',
+    'ios/ChatboxIOS/Views/DSFragmentView.h',
+    'ios/ChatboxIOS/Views/DSAttachmentPanel.h',
+    'ios/ChatboxIOS/Views/DSVoiceRecorder.h',
+    'ios/ChatboxIOS/Views/DSVoiceOverlay.h',
     'ios/ChatboxIOS/Supporting/DSTheme.h',
     'ios/ChatboxIOS/Supporting/DSStrings.h',
+    'ios/ChatboxIOS/Supporting/DSIcon.h',
 ]
 
 PROJECT_ID = oid('PROJECT')
@@ -400,6 +412,16 @@ def generate():
 \t\t\t\t\t"-lcrypto",
 \t\t\t\t\t"-lz",
 \t\t\t\t\t"-lsqlite3",
+\t\t\t\t\t"-framework",
+\t\t\t\t\tAVFoundation,
+\t\t\t\t\t"-framework",
+\t\t\t\t\tPhotosUI,
+\t\t\t\t\t"-framework",
+\t\t\t\t\tUniformTypeIdentifiers,
+\t\t\t\t\t"-framework",
+\t\t\t\t\tQuartzCore,
+\t\t\t\t\t"-framework",
+\t\t\t\t\tCoreGraphics,
 \t\t\t\t);
 \t\t\t\tINFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 \t\t\t\tINFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -444,6 +466,16 @@ def generate():
 \t\t\t\t\t"-lcrypto",
 \t\t\t\t\t"-lz",
 \t\t\t\t\t"-lsqlite3",
+\t\t\t\t\t"-framework",
+\t\t\t\t\tAVFoundation,
+\t\t\t\t\t"-framework",
+\t\t\t\t\tPhotosUI,
+\t\t\t\t\t"-framework",
+\t\t\t\t\tUniformTypeIdentifiers,
+\t\t\t\t\t"-framework",
+\t\t\t\t\tQuartzCore,
+\t\t\t\t\t"-framework",
+\t\t\t\t\tCoreGraphics,
 \t\t\t\t);
 \t\t\t\tINFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 \t\t\t\tINFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

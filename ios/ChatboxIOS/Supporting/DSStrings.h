@@ -43,6 +43,7 @@ extern NSString *const DSStrSending;                 // sending = 发送中
 extern NSString *const DSStrStop;                    // 自创：停止（官方靠按钮态，无独立文案）
 extern NSString *const DSStrNewLine;                 // new_line_menu = 换行
 extern NSString *const DSStrThinking;                // thinking = 正在思考
+extern NSString *const DSStrThinkingDone;            // 自创：已思考（官方有「已深度思考」长文案，这里用短式）
 extern NSString *const DSStrThinkAutoFold;           // thinkingAutoFold = 思考内容自动折叠
 extern NSString *const DSStrThinkAutoFoldDesc;       // thinkingAutoFoldDesc
 extern NSString *const DSStrRegenerate;              // regenerateNormal = 再试一次
@@ -123,5 +124,35 @@ extern NSString *const DSStrThinkStrength;           // 思考强度
 extern NSString *const DSStrContextLimit;            // 上下文限制
 extern NSString *const DSStrTemperature;             // 温度
 extern NSString *const DSStrSystemPrompt;            // 系统提示词
+
+#pragma mark - 补充文案（官方 806 条中对应的 key 已注明；标自创的是官方无此项）
+
+extern NSString *const DSStrSearching;               // toolSearchWip = 搜索中...
+extern NSString *const DSStrDeepThink;               // deepThink = 深度思考
+extern NSString *const DSStrSearched;                // toolSearchFinished 的短形式
+extern NSString *const DSStrBrowsing;                // toolOpen = 浏览
+extern NSString *const DSStrBrowseFailed;            // toolOpenFailed = 浏览失败
+extern NSString *const DSStrFindFailed;              // toolFindFailed = 查找失败
+extern NSString *const DSStrSearchFailed;            // toolSearchFailed = 联网搜索暂不可用
+extern NSString *const DSStrSources;                 // 自创：引用来源
+extern NSString *const DSStrToolCalls;               // 自创：工具调用
+extern NSString *const DSStrExpand;                  // 自创：展开
+extern NSString *const DSStrCollapse;                // 自创：收起
+extern NSString *const DSStrToolResult;              // 自创：执行结果
+extern NSString *const DSStrGenerating;              // 自创：生成中
+extern NSString *const DSStrStopped;                 // 自创：已停止生成
+extern NSString *const DSStrHoldToTalk;              // voiceInputButton = 按住说话
+extern NSString *const DSStrReleaseToSend;           // 自创：松开 发送
+extern NSString *const DSStrSlideUpToCancel;         // 自创：上滑 取消
+extern NSString *const DSStrRecognizing;             // 自创：识别中...
+extern NSString *const DSStrAttachments;             // 自创：附件
+extern NSString *const DSStrRemoveAttachment;        // 自创：移除
+extern NSString *const DSStrModelSwitch;             // 自创：切换模型
+extern NSString *const DSStrRetry;                   // 自创：重试
+
+/// 工具名 → 中文显示名（40 个内置工具）。未知名字回退为原样。
+FOUNDATION_EXPORT NSString *DSStrToolLabel(NSString *toolName);
+/// 工具名 → 分类：search / open / find / local（决定卡片图标与三态文案）
+FOUNDATION_EXPORT NSString *DSStrToolKind(NSString *toolName);
 
 NS_ASSUME_NONNULL_END

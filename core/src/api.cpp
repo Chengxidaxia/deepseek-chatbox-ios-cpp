@@ -290,7 +290,22 @@ json ApiClient::toApiMessages(const std::vector<Message>& history, const Setting
           body += "\n\n" + a.dataUrl;
         }
       }
-      out.push_back({{"role","user"},{"content",body.empty()?" ":body}});
+      // 图片附件：拼成 OpenAI 多模态 content 数组（识图模式用）
+      json parts = json::array();
+      bool hasImage = false;
+      for (const auto& a : m.attachments) {
+        if (a.kind != "image" || a.dataUrl.rfind("data:image/", 0) != 0) continue;
+        hasImage = true;
+        parts.push_back({{"type","image_url"},{"image_url",{{"url",a.dataUrl}}}});
+      }
+      if (hasImage) {
+        json content = json::array();
+        content.push_back({{"type","text"},{"text",body.empty()?" ":body}});
+        for (auto& p : parts) content.push_back(p);
+        out.push_back({{"role","user"},{"content",content}});
+      } else {
+        out.push_back({{"role","user"},{"content",body.empty()?" ":body}});
+      }
     } else if (m.role == "assistant") {
       if (m.content.empty() && m.reasoning.empty() && m.toolCalls.empty()) continue;
       json msg = {{"role","assistant"},{"content",m.content}};

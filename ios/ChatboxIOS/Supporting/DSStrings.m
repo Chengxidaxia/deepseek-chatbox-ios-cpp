@@ -37,6 +37,7 @@ NSString *const DSStrSending = @"发送中";
 NSString *const DSStrStop = @"停止";
 NSString *const DSStrNewLine = @"换行";
 NSString *const DSStrThinking = @"正在思考";
+NSString *const DSStrThinkingDone = @"已思考";
 NSString *const DSStrThinkAutoFold = @"思考内容自动折叠";
 NSString *const DSStrThinkAutoFoldDesc = @"开启后，思考结束后将自动折叠思考内容";
 NSString *const DSStrRegenerate = @"再试一次";
@@ -117,3 +118,70 @@ NSString *const DSStrThinkStrength = @"思考强度";
 NSString *const DSStrContextLimit = @"上下文限制";
 NSString *const DSStrTemperature = @"温度";
 NSString *const DSStrSystemPrompt = @"系统提示词";
+
+#pragma mark - 补充文案
+
+NSString *const DSStrSearching = @"搜索中...";
+NSString *const DSStrDeepThink = @"深度思考";
+NSString *const DSStrSearched = @"已搜索";
+NSString *const DSStrBrowsing = @"浏览";
+NSString *const DSStrBrowseFailed = @"浏览失败";
+NSString *const DSStrFindFailed = @"查找失败";
+NSString *const DSStrSearchFailed = @"联网搜索暂不可用";
+NSString *const DSStrSources = @"引用来源";
+NSString *const DSStrToolCalls = @"工具调用";
+NSString *const DSStrExpand = @"展开";
+NSString *const DSStrCollapse = @"收起";
+NSString *const DSStrToolResult = @"执行结果";
+NSString *const DSStrGenerating = @"生成中";
+NSString *const DSStrStopped = @"已停止生成";
+NSString *const DSStrHoldToTalk = @"按住说话";
+NSString *const DSStrReleaseToSend = @"松开 发送";
+NSString *const DSStrSlideUpToCancel = @"上滑 取消";
+NSString *const DSStrRecognizing = @"识别中...";
+NSString *const DSStrAttachments = @"附件";
+NSString *const DSStrRemoveAttachment = @"移除";
+NSString *const DSStrModelSwitch = @"切换模型";
+NSString *const DSStrRetry = @"重试";
+
+// 工具名 → 中文名。与 tool_defs.json 的 40 个工具一一对应；改工具清单时同步这里。
+// 官方的联网类工具（web_search/fetch_url）用官方文案「联网搜索」「读取网页」，
+// 其余是本机内置工具，官方没有，命名属自创（保持动词/名词短语风格统一）。
+static NSDictionary<NSString *, NSString *> *DSToolLabels(void) {
+  static NSDictionary *map = nil;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    map = @{
+      @"get_balance": @"账户余额", @"list_models": @"模型列表", @"current_time": @"当前时间",
+      @"search_history": @"搜索历史", @"usage_stats": @"用量统计", @"web_search": @"联网搜索",
+      @"fetch_url": @"读取网页", @"calculator": @"计算器", @"hash_text": @"哈希计算",
+      @"base64_codec": @"Base64 编解码", @"url_codec": @"URL 编解码", @"json_format": @"JSON 格式化",
+      @"text_stats": @"文本统计", @"uuid_gen": @"生成 UUID", @"random_pick": @"随机选择",
+      @"dns_lookup": @"DNS 查询", @"port_check": @"端口检测", @"http_request": @"HTTP 请求",
+      @"local_ip": @"本机 IP", @"base_convert": @"进制转换", @"percentage": @"百分比计算",
+      @"date_diff": @"日期差计算", @"unit_convert": @"单位换算", @"regex_test": @"正则测试",
+      @"diff_text": @"文本对比", @"csv_json": @"CSV/JSON 转换", @"slugify": @"生成 Slug",
+      @"password_gen": @"生成密码", @"id_validator": @"证件校验", @"timestamp_convert": @"时间戳转换",
+      @"json_minify": @"JSON 压缩", @"token_count": @"Token 计数", @"qr_text": @"生成二维码",
+      @"stat_calc": @"统计计算", @"hex_view": @"十六进制查看", @"color_convert": @"颜色转换",
+      @"text_kit": @"文本工具", @"aes_crypto": @"AES 加密", @"find_tool": @"查找工具",
+      @"cmd_run": @"执行命令",
+    };
+  });
+  return map;
+}
+
+NSString *DSStrToolLabel(NSString *toolName) {
+  if (toolName.length == 0) return DSStrToolCalls;
+  NSString *label = DSToolLabels()[toolName];
+  return label.length ? label : toolName;
+}
+
+NSString *DSStrToolKind(NSString *toolName) {
+  // 官方三类 Fragment：ToolSearchFragmentView / ToolOpenFragmentView / ToolFindFragmentView
+  if ([toolName isEqualToString:@"web_search"]) return @"search";
+  if ([toolName isEqualToString:@"fetch_url"] || [toolName isEqualToString:@"http_request"]) return @"open";
+  if ([toolName isEqualToString:@"find_tool"] || [toolName isEqualToString:@"search_history"]) return @"find";
+  return @"local";
+}
+

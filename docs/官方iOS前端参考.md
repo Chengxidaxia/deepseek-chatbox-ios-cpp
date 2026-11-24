@@ -148,17 +148,34 @@
 
 ## 6. 当前对齐情况
 
-| 项 | 状态 |
+| 项 | 状态 | 落点 |
+|---|---|---|
+| 用户气泡（淡蓝、右对齐、圆角 18、78% 宽） | 已实现 | `DSMessageCell` + `DSTheme` |
+| 用户气泡内附件预览（图片缩略图 / 文件 chip） | 已实现 | `DSMessageCell renderUserAttachments:` |
+| 助手无气泡、全宽左对齐 | 已实现 | `DSMessageCell` |
+| 思考块（2px 竖线、14/24、可折叠） | 已实现 | `DSMessageCell thinkBoxForRound:` |
+| 正文 16/28 | 已实现 | `DSTheme bodyText:color:` |
+| 会话列表时间分组 + 空态 | 已实现 | `DSConversationListController` |
+| 输入区（+ / 圆角输入框 / 圆形发送钮） | 已实现 | `DSChatViewController buildComposer` |
+| 输入区毛玻璃底 + 开关 chips（深度思考 / 联网搜索 / 模型） | 已实现 | `UIVisualEffectView` + `chipButtonWithTitle:` |
+| 官方文案表 | 已落地 | `DSStrings`（含 40 个工具的中文名映射） |
+| 工具卡片三态（搜索 / 浏览 / 查找 / 本地工具） | 已实现 | `DSToolCardView` |
+| 多轮工具循环 + 轮次用尽收尾提示 | 已实现 | `DSBoxService runAgentLoopWithHistory:` |
+| Fragment 卡片化（思考/工具/正文按发生顺序） | 已实现 | `DSMessageCell rebuildAssistant:` + `DSTurn` |
+| 联网搜索结果卡片（已搜索到 N 个网页） | 已实现 | `DSSearchResultCardView` |
+| 分支切换（第 n 条 / 共 m 条） | 已实现 | `DSBranchBar` + `DSTurn.branches` |
+| 引用来源（编号 + 标题 + 域名，可点开） | 已实现 | `DSCitationListView` |
+| 附件面板（相册 / 拍照 / 文件） | 已实现 | `DSAttachmentPanel` + PHPicker / UIImagePicker / UIDocumentPicker |
+| 语音输入（按住说话 + 波形 + 上滑取消 + ASR 回填） | 已实现 | `DSVoiceRecorder` + `DSVoiceOverlay` |
+| 识图（图片附件按 OpenAI 多模态 content 发送） | 已实现 | `core/src/api.cpp toApiMessages` |
+| Lottie 动画 | **改为等价自绘** | 官方 JSON 为 16×16 微动画，用 Core Animation 复刻（`DSVoiceOverlay` 波形、工具卡脉冲点、`DSIcon` 线性图标），不引入运行时依赖 |
+| 毛玻璃 / 渐变组件 | 已实现（毛玻璃） | 输入区 `UIBlurEffect` + 语音遮罩卡片；渐变未使用（官方仅 Tab 图标用渐变） |
+
+### 已知差异（非视觉，能力层面）
+
+| 差异 | 原因 |
 |---|---|
-| 用户气泡（淡蓝、右对齐、圆角 18、78% 宽） | 已实现 |
-| 助手无气泡、全宽左对齐 | 已实现 |
-| 思考块（2px 竖线、14/24、可折叠） | 已实现 |
-| 正文 16/28 | 已实现 |
-| 会话列表时间分组 + 空态 | 已实现 |
-| 输入区（+ / 圆角输入框 / 圆形发送钮） | 已实现 |
-| 官方文案表 | 已落地 `DSStrings` |
-| 工具卡片三态（搜索/浏览/查找） | **未做**（当前只有一行摘要） |
-| Fragment 卡片化 | **未做** |
-| 分支切换、引用来源、附件面板、语音输入 | **未做** |
-| Lottie 动画接入 | **未做**（需引入 Lottie 依赖） |
-| 毛玻璃 / 渐变组件 | **未做** |
+| 「继续生成」未做 | 需要 beta 接口的 `prefix` 续写，当前 core 的 `buildPayload` 已支持 `continuePrefix`，但 UI 未挂入口 |
+| 按住说话直接转文字、不边录边识别 | 官方为流式 ASR；这里用 `/v1/tools/asr` 一次性上传，松手后才出文字 |
+| 图片不落盘为独立文件 | 存 SQLite blob，随会话导出；官方存沙盒文件目录 |
+| 无侧边栏抽屉 | 会话列表用导航栈 push，官方是 Sidebar 抽屉 |

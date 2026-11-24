@@ -14,8 +14,14 @@
 		C30B5E2480381DA803D7CCC0 /* DSChatViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 236B99866C4D081F1E22F7B9 /* DSChatViewController.m */; };
 		98101C283E5A7FB4CBBAF986 /* DSSettingsViewController.mm in Sources */ = {isa = PBXBuildFile; fileRef = D22662A74F78C19BCD6A066E /* DSSettingsViewController.mm */; };
 		BF633C6FA585C4D569ABEB43 /* DSMessageCell.m in Sources */ = {isa = PBXBuildFile; fileRef = 34F75A9D41B7AF7179FB7E0F /* DSMessageCell.m */; };
+		6EBFF8EB8899A595408006E0 /* DSTurn.m in Sources */ = {isa = PBXBuildFile; fileRef = B6BE31C897A36FA3E015B0CA /* DSTurn.m */; };
+		1EDCFC9CB9AC30A85F950E2F /* DSFragmentView.m in Sources */ = {isa = PBXBuildFile; fileRef = E901E2C6A93E8497472DFEB1 /* DSFragmentView.m */; };
+		6CF73E4D9BEF0780362E21FF /* DSAttachmentPanel.m in Sources */ = {isa = PBXBuildFile; fileRef = CD65178059AD06E00623F367 /* DSAttachmentPanel.m */; };
+		E554829D61787B32026E74A8 /* DSVoiceRecorder.m in Sources */ = {isa = PBXBuildFile; fileRef = C880890475DA59C65FBC328B /* DSVoiceRecorder.m */; };
+		B8146CDA5F38AFB315DD944F /* DSVoiceOverlay.m in Sources */ = {isa = PBXBuildFile; fileRef = 840B5F65A0E5ED558F692997 /* DSVoiceOverlay.m */; };
 		192E428FD019875C5D2054F2 /* DSTheme.m in Sources */ = {isa = PBXBuildFile; fileRef = B4938CA75DB009429371D332 /* DSTheme.m */; };
 		9EC6E4410A28BA920F06F95A /* DSStrings.m in Sources */ = {isa = PBXBuildFile; fileRef = 765FF178BA9CB186EE4FC251 /* DSStrings.m */; };
+		D0D83AABD22CF68964F5290E /* DSIcon.m in Sources */ = {isa = PBXBuildFile; fileRef = 5BD3CDE4AC44E57601314589 /* DSIcon.m */; };
 		01254C7FCCDF46E8356C958C /* store.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 94547846DA3EF6DC5D13E641 /* store.cpp */; };
 		30B6AF5094CD7D0C3386FE1B /* api.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE40ECFBB45B50CBB7FB3889 /* api.cpp */; };
 		EED3B72F2AC8DD8EBC0AC925 /* tools.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E96DC8B3664B9C9BCF2671FC /* tools.cpp */; };
@@ -31,8 +37,14 @@
 		236B99866C4D081F1E22F7B9 /* DSChatViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Controllers/DSChatViewController.m; sourceTree = SOURCE_ROOT; };
 		D22662A74F78C19BCD6A066E /* DSSettingsViewController.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = ChatboxIOS/Controllers/DSSettingsViewController.mm; sourceTree = SOURCE_ROOT; };
 		34F75A9D41B7AF7179FB7E0F /* DSMessageCell.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Views/DSMessageCell.m; sourceTree = SOURCE_ROOT; };
+		B6BE31C897A36FA3E015B0CA /* DSTurn.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Views/DSTurn.m; sourceTree = SOURCE_ROOT; };
+		E901E2C6A93E8497472DFEB1 /* DSFragmentView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Views/DSFragmentView.m; sourceTree = SOURCE_ROOT; };
+		CD65178059AD06E00623F367 /* DSAttachmentPanel.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Views/DSAttachmentPanel.m; sourceTree = SOURCE_ROOT; };
+		C880890475DA59C65FBC328B /* DSVoiceRecorder.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Views/DSVoiceRecorder.m; sourceTree = SOURCE_ROOT; };
+		840B5F65A0E5ED558F692997 /* DSVoiceOverlay.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Views/DSVoiceOverlay.m; sourceTree = SOURCE_ROOT; };
 		B4938CA75DB009429371D332 /* DSTheme.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Supporting/DSTheme.m; sourceTree = SOURCE_ROOT; };
 		765FF178BA9CB186EE4FC251 /* DSStrings.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Supporting/DSStrings.m; sourceTree = SOURCE_ROOT; };
+		5BD3CDE4AC44E57601314589 /* DSIcon.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Supporting/DSIcon.m; sourceTree = SOURCE_ROOT; };
 		94547846DA3EF6DC5D13E641 /* store.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ../core/src/store.cpp; sourceTree = SOURCE_ROOT; };
 		BE40ECFBB45B50CBB7FB3889 /* api.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ../core/src/api.cpp; sourceTree = SOURCE_ROOT; };
 		E96DC8B3664B9C9BCF2671FC /* tools.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ../tools/src/tools.cpp; sourceTree = SOURCE_ROOT; };
@@ -44,8 +56,14 @@
 		6577AB37B4F1D9B514FFF84A /* DSChatViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Controllers/DSChatViewController.h; sourceTree = SOURCE_ROOT; };
 		11BB72FDD76081FB1BA40776 /* DSSettingsViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Controllers/DSSettingsViewController.h; sourceTree = SOURCE_ROOT; };
 		2E6DCEE2F6C613BF26567F1F /* DSMessageCell.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Views/DSMessageCell.h; sourceTree = SOURCE_ROOT; };
+		0EF6A1D195FFC2AE12DB6E80 /* DSTurn.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Views/DSTurn.h; sourceTree = SOURCE_ROOT; };
+		8C6306409520F8D600CA8F8F /* DSFragmentView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Views/DSFragmentView.h; sourceTree = SOURCE_ROOT; };
+		E33152CD8C7EB3D4CF8DD067 /* DSAttachmentPanel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Views/DSAttachmentPanel.h; sourceTree = SOURCE_ROOT; };
+		C5FC962F89D04FE0FC7DDD17 /* DSVoiceRecorder.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Views/DSVoiceRecorder.h; sourceTree = SOURCE_ROOT; };
+		5453AB1D557E178C0DC2ED4C /* DSVoiceOverlay.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Views/DSVoiceOverlay.h; sourceTree = SOURCE_ROOT; };
 		E16E143393A71D7E902516B5 /* DSTheme.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Supporting/DSTheme.h; sourceTree = SOURCE_ROOT; };
 		6F24369D6754E920BB42B91E /* DSStrings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Supporting/DSStrings.h; sourceTree = SOURCE_ROOT; };
+		979E77D6D1D4F716AD675217 /* DSIcon.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Supporting/DSIcon.h; sourceTree = SOURCE_ROOT; };
 		32EE9B0124EFF3CDC1AC2A96 /* api.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ../core/include/api.hpp; sourceTree = SOURCE_ROOT; };
 		10F4C167C9CA5B49471428FC /* crypto.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ../core/include/crypto.hpp; sourceTree = SOURCE_ROOT; };
 		F5FECC3C864F65065EC2549C /* model.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ../core/include/model.hpp; sourceTree = SOURCE_ROOT; };
@@ -108,9 +126,11 @@
 				044F7359BDDE36E8942BEEEA /* AppDelegate.mm */,
 				B4938CA75DB009429371D332 /* DSTheme.m */,
 				765FF178BA9CB186EE4FC251 /* DSStrings.m */,
+				5BD3CDE4AC44E57601314589 /* DSIcon.m */,
 				EAD190D7CA0E7857F84EE185 /* AppDelegate.h */,
 				E16E143393A71D7E902516B5 /* DSTheme.h */,
 				6F24369D6754E920BB42B91E /* DSStrings.h */,
+				979E77D6D1D4F716AD675217 /* DSIcon.h */,
 			);
 			name = Supporting;
 			sourceTree = "<group>";
@@ -141,7 +161,17 @@
 			isa = PBXGroup;
 			children = (
 				34F75A9D41B7AF7179FB7E0F /* DSMessageCell.m */,
+				B6BE31C897A36FA3E015B0CA /* DSTurn.m */,
+				E901E2C6A93E8497472DFEB1 /* DSFragmentView.m */,
+				CD65178059AD06E00623F367 /* DSAttachmentPanel.m */,
+				C880890475DA59C65FBC328B /* DSVoiceRecorder.m */,
+				840B5F65A0E5ED558F692997 /* DSVoiceOverlay.m */,
 				2E6DCEE2F6C613BF26567F1F /* DSMessageCell.h */,
+				0EF6A1D195FFC2AE12DB6E80 /* DSTurn.h */,
+				8C6306409520F8D600CA8F8F /* DSFragmentView.h */,
+				E33152CD8C7EB3D4CF8DD067 /* DSAttachmentPanel.h */,
+				C5FC962F89D04FE0FC7DDD17 /* DSVoiceRecorder.h */,
+				5453AB1D557E178C0DC2ED4C /* DSVoiceOverlay.h */,
 			);
 			name = Views;
 			sourceTree = "<group>";
@@ -273,8 +303,14 @@
 				C30B5E2480381DA803D7CCC0 /* DSChatViewController.m in Sources */,
 				98101C283E5A7FB4CBBAF986 /* DSSettingsViewController.mm in Sources */,
 				BF633C6FA585C4D569ABEB43 /* DSMessageCell.m in Sources */,
+				6EBFF8EB8899A595408006E0 /* DSTurn.m in Sources */,
+				1EDCFC9CB9AC30A85F950E2F /* DSFragmentView.m in Sources */,
+				6CF73E4D9BEF0780362E21FF /* DSAttachmentPanel.m in Sources */,
+				E554829D61787B32026E74A8 /* DSVoiceRecorder.m in Sources */,
+				B8146CDA5F38AFB315DD944F /* DSVoiceOverlay.m in Sources */,
 				192E428FD019875C5D2054F2 /* DSTheme.m in Sources */,
 				9EC6E4410A28BA920F06F95A /* DSStrings.m in Sources */,
+				D0D83AABD22CF68964F5290E /* DSIcon.m in Sources */,
 				01254C7FCCDF46E8356C958C /* store.cpp in Sources */,
 				30B6AF5094CD7D0C3386FE1B /* api.cpp in Sources */,
 				EED3B72F2AC8DD8EBC0AC925 /* tools.cpp in Sources */,
@@ -355,6 +391,16 @@
 					"-lcrypto",
 					"-lz",
 					"-lsqlite3",
+					"-framework",
+					AVFoundation,
+					"-framework",
+					PhotosUI,
+					"-framework",
+					UniformTypeIdentifiers,
+					"-framework",
+					QuartzCore,
+					"-framework",
+					CoreGraphics,
 				);
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -399,6 +445,16 @@
 					"-lcrypto",
 					"-lz",
 					"-lsqlite3",
+					"-framework",
+					AVFoundation,
+					"-framework",
+					PhotosUI,
+					"-framework",
+					UniformTypeIdentifiers,
+					"-framework",
+					QuartzCore,
+					"-framework",
+					CoreGraphics,
 				);
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

@@ -32,6 +32,19 @@ int main() {
     CHECK(msgs[3].contains("reasoning_content") && msgs[3]["reasoning_content"]=="思考", "助手思考字段");
     CHECK(msgs[3]["tool_calls"].size()==1 && msgs[3]["tool_calls"][0]["function"]["name"]=="calculator", "助手 tool_calls");
     CHECK(msgs[4]["role"]=="tool" && msgs[4]["tool_call_id"]=="c1", "tool 结果消息");
+
+    // 识图：图片附件转多模态 content 数组
+    Settings sv;
+    std::vector<Message> vh;
+    Message vu; vu.role="user"; vu.content="这张图是什么";
+    Attachment img; img.kind="image"; img.name="a.jpg"; img.mime="image/jpeg";
+    img.dataUrl="data:image/jpeg;base64,AAAA";
+    vu.attachments.push_back(img);
+    vh.push_back(vu);
+    json vm = ApiClient::toApiMessages(vh, sv, "");
+    CHECK(vm.size()==1 && vm[0]["content"].is_array(), "图片消息 content 为数组");
+    CHECK(vm[0]["content"][0]["type"]=="text" && vm[0]["content"][1]["type"]=="image_url",
+          "多模态 parts 顺序：text → image_url");
   }
 
   std::cout << "=== buildPayload ===\n";

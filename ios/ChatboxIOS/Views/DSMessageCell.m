@@ -2,36 +2,49 @@
 //  DSMessageCell.m
 //  ChatboxIOS
 //
-//  两种形态，对齐官方：
-//  - 用户消息：右对齐淡蓝气泡（--bubble），圆角 18，内边距 10/14，最大宽 78%
-//  - 助手消息：无气泡背景，全宽左对齐；思考块左侧 2px 竖线 + 可折叠正文
-//  结构参官方类的 Fragment 思路（ThinkFragmentView / AgentFragmentsView）：
-//  一条回答内的「思考 → 工具 → 正文」按顺序竖向排布，不使用左右分栏。
+//  两种形态：
+//  - 用户消息：右对齐淡蓝气泡（--bubble），圆角 18、内边距 10/14、最大宽 78%
+//  - 助手消息：无气泡、全宽左对齐，按官方 Fragment 顺序竖向排列：
+//      思考（2px 竖线，可折叠）→ 该轮工具卡片 → 引用 → 正文 → 用量/分支/操作
+//    一条回答可能有多轮（工具调用往返），每轮的思考与工具各归各位，不合并成一组。
 //
 
 #import "DSMessageCell.h"
 #import "DSTheme.h"
 #import "DSStrings.h"
+#import "DSIcon.h"
+#import "DSTurn.h"
+#import "DSFragmentView.h"
+#import "DSBoxService.h"
+#import <objc/runtime.h>
 
 @interface DSMessageCell ()
-// 用户气泡
+// 用户
 @property (nonatomic, strong) UIView *userBubble;
 @property (nonatomic, strong) UILabel *userLabel;
-// 助手列
+@property (nonatomic, strong) UIStackView *userAttach;
+@property (nonatomic, strong) UIStackView *userFoot;
+@property (nonatomic, strong) DSBranchBar *userBranchBar;
+@property (nonatomic, strong) UIButton *btnUserCopy;
+// 助手
 @property (nonatomic, strong) UIStackView *assistStack;
-@property (nonatomic, strong) UIView *thinkBox;
-@property (nonatomic, strong) UIView *thinkBar;
-@property (nonatomic, strong) UIButton *thinkHead;
-@property (nonatomic, strong) UILabel *thinkBody;
-@property (nonatomic, strong) UILabel *contentLabel;
-@property (nonatomic, strong) UILabel *toolLabel;
+@property (nonatomic, strong) UIStackView *fragStack;
+@property (nonatomic, strong) UILabel *statusLabel;
 @property (nonatomic, strong) UIStackView *footerStack;
 @property (nonatomic, strong) UILabel *usageLabel;
+@property (nonatomic, strong) DSBranchBar *assistBranchBar;
 @property (nonatomic, strong) UIButton *btnCopy;
-@property (nonatomic, strong) UIButton *regenButton;
+@property (nonatomic, strong) UIButton *btnRegen;
 // 状态
-@property (nonatomic, strong, readwrite, nullable) NSDictionary *message;
-@property (nonatomic, assign) BOOL thinkExpanded;
+@property (nonatomic, strong, readwrite, nullable) DSTurn *turn;
+@property (nonatomic, copy) NSString *signature;
+/// key -> 视图，用于流式增量更新（避免每帧重建整条消息）
+@property (nonatomic, strong) NSMutableDictionary<NSString *, UIView *> *fragIndex;
+/// 已展开的思考块（按轮序号）
+@property (nonatomic, strong) NSMutableSet<NSNumber *> *thinkExpanded;
+/// 用户侧 / 助手侧各一条底部约束，按 turn 类型互斥启用（否则隐藏的一侧仍会撑高行）
+@property (nonatomic, strong) NSLayoutConstraint *userBottomConstraint;
+@property (nonatomic, strong) NSLayoutConstraint *assistBottomConstraint;
 @end
 
 @implementation DSMessageCell
@@ -41,6 +54,8 @@
     self.selectionStyle = UITableViewCellSelectionStyleNone;
     self.backgroundColor = UIColor.clearColor;
     self.contentView.backgroundColor = UIColor.clearColor;
+    _fragIndex = [NSMutableDictionary dictionary];
+    _thinkExpanded = [NSMutableSet set];
     [self buildUserViews];
     [self buildAssistViews];
     [self activateBaseConstraints];
@@ -62,15 +77,39 @@
   _userLabel.translatesAutoresizingMaskIntoConstraints = NO;
   _userLabel.numberOfLines = 0;
   _userLabel.textColor = [DSTheme labelPrimary];
-  [_userBubble addSubview:_userLabel];
+
+  // 气泡内：附件缩略图（图片 / 文件 chip）在上，正文在下
+  _userAttach = [[UIStackView alloc] initWithArrangedSubviews:@[]];
+  _userAttach.translatesAutoresizingMaskIntoConstraints = NO;
+  _userAttach.axis = UILayoutConstraintAxisHorizontal;
+  _userAttach.spacing = 6;
+  _userAttach.alignment = UIStackViewAlignmentTop;
+
+  UIStackView *col = [[UIStackView alloc] initWithArrangedSubviews:@[_userAttach, _userLabel]];
+  col.translatesAutoresizingMaskIntoConstraints = NO;
+  col.axis = UILayoutConstraintAxisVertical;
+  col.spacing = 6;
+  [_userBubble addSubview:col];
 
   UIEdgeInsets ins = [DSTheme userBubbleInsets];
   [NSLayoutConstraint activateConstraints:@[
-    [_userLabel.topAnchor constraintEqualToAnchor:_userBubble.topAnchor constant:ins.top],
-    [_userLabel.bottomAnchor constraintEqualToAnchor:_userBubble.bottomAnchor constant:-ins.bottom],
-    [_userLabel.leadingAnchor constraintEqualToAnchor:_userBubble.leadingAnchor constant:ins.left],
-    [_userLabel.trailingAnchor constraintEqualToAnchor:_userBubble.trailingAnchor constant:-ins.right],
+    [col.topAnchor constraintEqualToAnchor:_userBubble.topAnchor constant:ins.top],
+    [col.bottomAnchor constraintEqualToAnchor:_userBubble.bottomAnchor constant:-ins.bottom],
+    [col.leadingAnchor constraintEqualToAnchor:_userBubble.leadingAnchor constant:ins.left],
+    [col.trailingAnchor constraintEqualToAnchor:_userBubble.trailingAnchor constant:-ins.right],
   ]];
+
+  // 气泡下方：分支切换 + 复制（右对齐，对齐官方 UserMessageOperationBar）
+  _btnUserCopy = [self footerButtonWithTitle:DSStrCopy action:@selector(onCopyTapped)];
+  _userBranchBar = [[DSBranchBar alloc] initWithFrame:CGRectZero];
+  UIView *spacer = [[UIView alloc] init];
+  [spacer setContentHuggingPriority:UILayoutPriorityDefaultLow forAxis:UILayoutConstraintAxisHorizontal];
+  _userFoot = [[UIStackView alloc] initWithArrangedSubviews:@[_userBranchBar, spacer, _btnUserCopy]];
+  _userFoot.translatesAutoresizingMaskIntoConstraints = NO;
+  _userFoot.axis = UILayoutConstraintAxisHorizontal;
+  _userFoot.alignment = UIStackViewAlignmentCenter;
+  _userFoot.spacing = 8;
+  [self.contentView addSubview:_userFoot];
 }
 
 - (void)buildAssistViews {
@@ -81,75 +120,36 @@
   _assistStack.alignment = UIStackViewAlignmentFill;
   [self.contentView addSubview:_assistStack];
 
-  // 思考块：左侧竖线 + 头部 + 正文
-  _thinkBox = [[UIView alloc] init];
-  _thinkBox.translatesAutoresizingMaskIntoConstraints = NO;
+  _fragStack = [[UIStackView alloc] init];
+  _fragStack.translatesAutoresizingMaskIntoConstraints = NO;
+  _fragStack.axis = UILayoutConstraintAxisVertical;
+  _fragStack.spacing = 10;
+  _fragStack.alignment = UIStackViewAlignmentFill;
 
-  _thinkBar = [[UIView alloc] init];
-  _thinkBar.translatesAutoresizingMaskIntoConstraints = NO;
-  _thinkBar.backgroundColor = [DSTheme borderL3];
-  [_thinkBox addSubview:_thinkBar];
+  _statusLabel = [[UILabel alloc] init];
+  _statusLabel.numberOfLines = 0;
+  _statusLabel.font = [DSTheme captionFont];
+  _statusLabel.textColor = [DSTheme labelTertiary];
 
-  _thinkHead = [UIButton buttonWithType:UIButtonTypeSystem];
-  _thinkHead.translatesAutoresizingMaskIntoConstraints = NO;
-  _thinkHead.contentHorizontalAlignment = UIControlContentHorizontalAlignmentLeft;
-  _thinkHead.titleLabel.font = [DSTheme thinkHeadFont];
-  [_thinkHead setTitle:DSStrThinking forState:UIControlStateNormal];
-  [_thinkHead setTitleColor:[DSTheme labelSecondary] forState:UIControlStateNormal];
-  [_thinkHead addTarget:self action:@selector(toggleThink) forControlEvents:UIControlEventTouchUpInside];
-
-  _thinkBody = [[UILabel alloc] init];
-  _thinkBody.translatesAutoresizingMaskIntoConstraints = NO;
-  _thinkBody.numberOfLines = 0;
-
-  UIStackView *inner = [[UIStackView alloc] initWithArrangedSubviews:@[_thinkHead, _thinkBody]];
-  inner.translatesAutoresizingMaskIntoConstraints = NO;
-  inner.axis = UILayoutConstraintAxisVertical;
-  inner.spacing = 4;
-  inner.alignment = UIStackViewAlignmentFill;
-  [_thinkBox addSubview:inner];
-
-  [NSLayoutConstraint activateConstraints:@[
-    [_thinkBar.leadingAnchor constraintEqualToAnchor:_thinkBox.leadingAnchor],
-    [_thinkBar.topAnchor constraintEqualToAnchor:_thinkBox.topAnchor],
-    [_thinkBar.bottomAnchor constraintEqualToAnchor:_thinkBox.bottomAnchor],
-    [_thinkBar.widthAnchor constraintEqualToConstant:[DSTheme thinkBarWidth]],
-    [inner.leadingAnchor constraintEqualToAnchor:_thinkBox.leadingAnchor constant:[DSTheme thinkBarGap]],
-    [inner.trailingAnchor constraintEqualToAnchor:_thinkBox.trailingAnchor],
-    [inner.topAnchor constraintEqualToAnchor:_thinkBox.topAnchor],
-    [inner.bottomAnchor constraintEqualToAnchor:_thinkBox.bottomAnchor],
-  ]];
-
-  // 正文
-  _contentLabel = [[UILabel alloc] init];
-  _contentLabel.numberOfLines = 0;
-
-  // 工具摘要（暂时用单行文字；Fragment 卡片化留待后续）
-  _toolLabel = [[UILabel alloc] init];
-  _toolLabel.numberOfLines = 0;
-  _toolLabel.font = [DSTheme thinkFont];
-  _toolLabel.textColor = [DSTheme labelSecondary];
-
-  // 底栏：用量 + 操作
   _usageLabel = [[UILabel alloc] init];
   _usageLabel.font = [DSTheme usageFont];
   _usageLabel.textColor = [DSTheme labelCaption];
 
+  _assistBranchBar = [[DSBranchBar alloc] initWithFrame:CGRectZero];
   _btnCopy = [self footerButtonWithTitle:DSStrCopy action:@selector(onCopyTapped)];
-  _regenButton = [self footerButtonWithTitle:DSStrRegenerate action:@selector(regenTapped)];
+  _btnRegen = [self footerButtonWithTitle:DSStrRegenerate action:@selector(regenTapped)];
 
   UIView *spacer = [[UIView alloc] init];
-  [spacer setContentHuggingPriority:UILayoutPriorityDefaultLow
-                            forAxis:UILayoutConstraintAxisHorizontal];
+  [spacer setContentHuggingPriority:UILayoutPriorityDefaultLow forAxis:UILayoutConstraintAxisHorizontal];
 
-  _footerStack = [[UIStackView alloc] initWithArrangedSubviews:@[_usageLabel, spacer, _btnCopy, _regenButton]];
+  _footerStack = [[UIStackView alloc] initWithArrangedSubviews:
+      @[_assistBranchBar, _usageLabel, spacer, _btnCopy, _btnRegen]];
   _footerStack.axis = UILayoutConstraintAxisHorizontal;
   _footerStack.spacing = 12;
   _footerStack.alignment = UIStackViewAlignmentCenter;
 
-  [_assistStack addArrangedSubview:_thinkBox];
-  [_assistStack addArrangedSubview:_toolLabel];
-  [_assistStack addArrangedSubview:_contentLabel];
+  [_assistStack addArrangedSubview:_fragStack];
+  [_assistStack addArrangedSubview:_statusLabel];
   [_assistStack addArrangedSubview:_footerStack];
 }
 
@@ -160,6 +160,7 @@
   [b setTitle:title forState:UIControlStateNormal];
   [b setTitleColor:[DSTheme labelTertiary] forState:UIControlStateNormal];
   [b addTarget:self action:action forControlEvents:UIControlEventTouchUpInside];
+  [b setContentHuggingPriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
   return b;
 }
 
@@ -167,108 +168,447 @@
   UIView *cv = self.contentView;
   CGFloat pad = [DSTheme messageListPadding];
 
+  _userBottomConstraint = [_userFoot.bottomAnchor constraintEqualToAnchor:cv.bottomAnchor constant:-6];
+  _assistBottomConstraint = [_assistStack.bottomAnchor constraintEqualToAnchor:cv.bottomAnchor constant:-6];
+
   [NSLayoutConstraint activateConstraints:@[
     // 用户气泡
     [_userBubble.topAnchor constraintEqualToAnchor:cv.topAnchor constant:6],
-    [_userBubble.bottomAnchor constraintEqualToAnchor:cv.bottomAnchor constant:-6],
     [_userBubble.trailingAnchor constraintEqualToAnchor:cv.trailingAnchor constant:-pad],
     [_userBubble.leadingAnchor constraintGreaterThanOrEqualToAnchor:cv.leadingAnchor constant:pad],
     [_userBubble.widthAnchor constraintLessThanOrEqualToAnchor:cv.widthAnchor multiplier:[DSTheme userBubbleMaxWidth]],
 
+    [_userFoot.topAnchor constraintEqualToAnchor:_userBubble.bottomAnchor constant:4],
+    [_userFoot.trailingAnchor constraintEqualToAnchor:cv.trailingAnchor constant:-pad],
+    [_userFoot.leadingAnchor constraintGreaterThanOrEqualToAnchor:cv.leadingAnchor constant:pad],
+
     // 助手列
     [_assistStack.topAnchor constraintEqualToAnchor:cv.topAnchor constant:6],
-    [_assistStack.bottomAnchor constraintEqualToAnchor:cv.bottomAnchor constant:-6],
     [_assistStack.leadingAnchor constraintEqualToAnchor:cv.leadingAnchor constant:pad],
     [_assistStack.trailingAnchor constraintEqualToAnchor:cv.trailingAnchor constant:-pad],
   ]];
+  // 默认按助手形态排布；configure 时按 turn 类型切换
+  _assistBottomConstraint.active = YES;
+  _userBottomConstraint.active = NO;
 }
 
 #pragma mark - 配置
 
-- (void)configure:(NSDictionary *)message {
-  _message = message;
-  BOOL isUser = [(message[@"role"] ?: @"") isEqualToString:@"user"];
+- (void)configureWithTurn:(DSTurn *)turn {
+  _turn = turn;
+  BOOL isUser = (turn.role == DSTurnRoleUser);
 
   _userBubble.hidden = !isUser;
+  _userFoot.hidden = !isUser;
   _assistStack.hidden = isUser;
+  _userBottomConstraint.active = isUser;
+  _assistBottomConstraint.active = !isUser;
 
   if (isUser) {
-    [self configureUser:message];
+    // 用户行不保留上一条助手内容，避免隐藏视图继续撑高
+    [self clearFragments];
+    _signature = nil;
+    [self renderUser:(DSTurn *)turn];
+    return;
+  }
+  _userLabel.attributedText = nil;
+
+  NSString *sig = [self signatureForTurn:turn];
+  if (_fragIndex.count && [sig isEqualToString:_signature]) {
+    [self updateAssistantTexts:turn];
+    return;
+  }
+  _signature = sig;
+  [self rebuildAssistant:turn];
+}
+
+- (NSString *)signatureForTurn:(DSTurn *)t {
+  NSMutableString *s = [NSMutableString string];
+  [s appendFormat:@"r%lu", (unsigned long)t.rounds.count];
+  for (NSDictionary *r in t.rounds) {
+    NSArray *calls = [r[@"tool_calls"] isKindOfClass:NSArray.class] ? r[@"tool_calls"] : @[];
+    [s appendFormat:@"|c%lu", (unsigned long)calls.count];
+  }
+  [s appendFormat:@"|s%lu|n%lu|b%ld/%ld", (unsigned long)t.serverCalls.count,
+                  (unsigned long)t.citations.count, (long)t.branchIndex, (long)t.branchTotal];
+  return s;
+}
+
+- (void)renderUser:(DSTurn *)t {
+  NSDictionary *m = t.anchor;
+  _userLabel.attributedText = [DSTheme bodyText:m[@"content"] ?: @"" color:[DSTheme labelPrimary]];
+  [self renderUserAttachments:m[@"attachments"]];
+
+  if (t.branchTotal > 1) {
+    _userBranchBar.hidden = NO;
+    [_userBranchBar setIndex:t.branchIndex total:t.branchTotal];
+    __weak __typeof(self) ws = self;
+    _userBranchBar.onPrev = ^{
+      if ([ws.delegate respondsToSelector:@selector(messageCell:didSwitchBranch:)])
+        [ws.delegate messageCell:ws didSwitchBranch:-1];
+    };
+    _userBranchBar.onNext = ^{
+      if ([ws.delegate respondsToSelector:@selector(messageCell:didSwitchBranch:)])
+        [ws.delegate messageCell:ws didSwitchBranch:1];
+    };
   } else {
-    [self configureAssistant:message];
+    _userBranchBar.hidden = YES;
+  }
+  _btnUserCopy.hidden = [(NSString *)(m[@"content"] ?: @"") length] == 0;
+}
+
+/// 用户气泡里的附件预览：图片显示缩略图，其它显示文件名 chip
+- (void)renderUserAttachments:(NSArray *)atts {
+  for (UIView *v in _userAttach.arrangedSubviews) {
+    [_userAttach removeArrangedSubview:v];
+    [v removeFromSuperview];
+  }
+  if (![atts isKindOfClass:NSArray.class] || atts.count == 0) {
+    _userAttach.hidden = YES;
+    return;
+  }
+  _userAttach.hidden = NO;
+
+  for (NSDictionary *a in atts) {
+    if (![a isKindOfClass:NSDictionary.class]) continue;
+    NSString *kind = [a[@"kind"] isKindOfClass:NSString.class] ? a[@"kind"] : @"file";
+    NSString *name = [a[@"name"] isKindOfClass:NSString.class] ? a[@"name"] : @"附件";
+
+    if ([kind isEqualToString:@"image"]) {
+      UIImage *img = [self imageForAttachment:a];
+      UIImageView *iv = [[UIImageView alloc] initWithImage:img];
+      iv.translatesAutoresizingMaskIntoConstraints = NO;
+      iv.contentMode = UIViewContentModeScaleAspectFill;
+      iv.clipsToBounds = YES;
+      iv.backgroundColor = [DSTheme bgHover];
+      iv.layer.cornerRadius = 12;
+      iv.layer.cornerCurve = kCACornerCurveContinuous;
+      [NSLayoutConstraint activateConstraints:@[
+        [iv.widthAnchor constraintEqualToConstant:124],
+        [iv.heightAnchor constraintEqualToConstant:124],
+      ]];
+      [_userAttach addArrangedSubview:iv];
+    } else {
+      UIView *chip = [[UIView alloc] init];
+      chip.translatesAutoresizingMaskIntoConstraints = NO;
+      chip.backgroundColor = [DSTheme bgBase];
+      chip.layer.cornerRadius = 10;
+      chip.layer.borderWidth = 1;
+      chip.layer.borderColor = [DSTheme borderL2].CGColor;
+
+      UIImageView *icon = [[UIImageView alloc] init];
+      icon.translatesAutoresizingMaskIntoConstraints = NO;
+      icon.image = [DSIcon image:DSIconFile size:14];
+      icon.tintColor = [DSTheme labelTertiary];
+      [chip addSubview:icon];
+
+      UILabel *label = [[UILabel alloc] init];
+      label.translatesAutoresizingMaskIntoConstraints = NO;
+      label.font = [UIFont systemFontOfSize:12];
+      label.textColor = [DSTheme labelSecondary];
+      label.text = name;
+      label.lineBreakMode = NSLineBreakByTruncatingMiddle;
+      [chip addSubview:label];
+
+      [NSLayoutConstraint activateConstraints:@[
+        [chip.heightAnchor constraintEqualToConstant:30],
+        [icon.leadingAnchor constraintEqualToAnchor:chip.leadingAnchor constant:8],
+        [icon.centerYAnchor constraintEqualToAnchor:chip.centerYAnchor],
+        [icon.widthAnchor constraintEqualToConstant:14],
+        [icon.heightAnchor constraintEqualToConstant:14],
+        [label.leadingAnchor constraintEqualToAnchor:icon.trailingAnchor constant:6],
+        [label.trailingAnchor constraintEqualToAnchor:chip.trailingAnchor constant:-10],
+        [label.centerYAnchor constraintEqualToAnchor:chip.centerYAnchor],
+      ]];
+      [_userAttach addArrangedSubview:chip];
+    }
   }
 }
 
-- (void)configureUser:(NSDictionary *)m {
-  _userLabel.attributedText = [DSTheme bodyText:m[@"content"] ?: @""
-                                          color:[DSTheme labelPrimary]];
+- (nullable UIImage *)imageForAttachment:(NSDictionary *)a {
+  NSString *dataUrl = [a[@"dataUrl"] isKindOfClass:NSString.class] ? a[@"dataUrl"] : @"";
+  if ([dataUrl hasPrefix:@"data:image/"] && [dataUrl containsString:@","]) {
+    NSString *b64 = [dataUrl componentsSeparatedByString:@","].lastObject;
+    NSData *d = [[NSData alloc] initWithBase64EncodedString:b64 options:NSDataBase64DecodingIgnoreUnknownCharacters];
+    if (d.length) return [UIImage imageWithData:d];
+  }
+  NSString *attId = [a[@"id"] isKindOfClass:NSString.class] ? a[@"id"] : @"";
+  if (attId.length) {
+    NSData *d = [[DSBoxService shared] attachmentDataWithId:attId];
+    if (d.length) return [UIImage imageWithData:d];
+  }
+  return nil;
 }
 
-- (void)configureAssistant:(NSDictionary *)m {
-  NSString *reasoning = m[@"reasoning"] ?: @"";
-  NSString *content = m[@"content"] ?: @"";
-  BOOL streaming = [m[@"streaming"] boolValue];
+#pragma mark - 助手重建
 
-  // 思考块
-  if (reasoning.length > 0) {
-    _thinkBox.hidden = NO;
-    _thinkBody.attributedText = [DSTheme thinkText:reasoning color:[DSTheme labelTertiary]];
-    // 流式中始终展开；结束后按折叠状态（默认折叠，对齐 thinkingAutoFold 的默认行为）
-    BOOL expand = streaming ? YES : self.thinkExpanded;
-    _thinkBody.hidden = !expand;
-  } else {
-    _thinkBox.hidden = YES;
+- (void)clearFragments {
+  for (UIView *v in _fragStack.arrangedSubviews) {
+    [_fragStack removeArrangedSubview:v];
+    [v removeFromSuperview];
   }
-
-  // 工具调用摘要
-  NSArray *tools = m[@"toolNames"];
-  if ([tools isKindOfClass:NSArray.class] && tools.count > 0) {
-    _toolLabel.hidden = NO;
-    _toolLabel.text = [NSString stringWithFormat:@"%@ · %lu",
-                       DSStrToolSearchResult, (unsigned long)tools.count];
-  } else {
-    _toolLabel.hidden = YES;
-    _toolLabel.text = nil;
-  }
-
-  // 正文
-  if (content.length > 0) {
-    _contentLabel.hidden = NO;
-    _contentLabel.attributedText = [DSTheme bodyText:content color:[DSTheme labelPrimary]];
-  } else {
-    _contentLabel.hidden = YES;
-    _contentLabel.attributedText = nil;
-  }
-
-  // 用量与操作
-  NSNumber *p = m[@"prompt_tokens"], *c = m[@"completion_tokens"];
-  if ((p || c) && !streaming) {
-    _usageLabel.hidden = NO;
-    _usageLabel.text = [NSString stringWithFormat:@"↑%@ ↓%@", p ?: @0, c ?: @0];
-  } else {
-    _usageLabel.hidden = YES;
-    _usageLabel.text = nil;
-  }
-  _btnCopy.hidden = streaming || content.length == 0;
-  // 「再试一次」需要「替换指定消息」的服务端能力，当前 core 尚未提供，
-  // 先隐藏按钮而不是给一个会追加重复消息的假功能。
-  _regenButton.hidden = YES;
-  _footerStack.hidden = _usageLabel.hidden && _btnCopy.hidden;
+  [_fragIndex removeAllObjects];
 }
 
-#pragma mark - 交互
+- (void)rebuildAssistant:(DSTurn *)t {
+  [self clearFragments];
 
-- (void)setThinkExpanded:(BOOL)expanded {
-  _thinkExpanded = expanded;
-  _thinkBody.hidden = !expanded;
+  __weak __typeof(self) ws = self;
+  void (^layoutChanged)(void) = ^{
+    [ws notifyHeightChanged];
+  };
+
+  // ---- 按发生顺序铺 Fragment ----
+  [t.rounds enumerateObjectsUsingBlock:^(NSDictionary *round, NSUInteger i, BOOL *stop) {
+    NSString *reasoning = [round[@"reasoning"] isKindOfClass:NSString.class] ? round[@"reasoning"] : @"";
+    if (reasoning.length) {
+      UIView *box = [self thinkBoxForRound:round index:i layoutChanged:layoutChanged];
+      [self->_fragStack addArrangedSubview:box];
+    }
+
+    // 本地工具调用（每轮各自成卡片，按调用顺序；同一轮多个调用依次列出）
+    NSArray *calls = [round[@"tool_calls"] isKindOfClass:NSArray.class] ? round[@"tool_calls"] : @[];
+    [calls enumerateObjectsUsingBlock:^(NSDictionary *call, NSUInteger j, BOOL *stop2) {
+      NSString *name = [call[@"name"] isKindOfClass:NSString.class] ? call[@"name"] : @"";
+      if (name.length == 0) return;
+      NSString *argsStr = [call[@"arguments"] isKindOfClass:NSString.class] ? call[@"arguments"] : @"";
+      NSDictionary *args = [self jsonObjectFromString:argsStr];
+      DSToolCardView *card = [[DSToolCardView alloc] initWithToolName:name arguments:args];
+      card.onLayoutChange = layoutChanged;
+
+      NSString *cid = [call[@"id"] isKindOfClass:NSString.class] ? call[@"id"] : @"";
+      NSDictionary *result = cid.length ? t.toolResults[cid] : nil;
+      if (result) {
+        BOOL ok = [result[@"toolOk"] isKindOfClass:NSNumber.class] ? [result[@"toolOk"] boolValue] : YES;
+        NSString *text = [result[@"content"] isKindOfClass:NSString.class] ? result[@"content"] : @"";
+        NSInteger ms = [result[@"toolMs"] isKindOfClass:NSNumber.class] ? [result[@"toolMs"] integerValue] : 0;
+        [card applyStatus:ok ? DSToolStatusOK : DSToolStatusFailed text:text milliseconds:ms];
+      }
+      NSString *key = [NSString stringWithFormat:@"tool:%lu:%lu", (unsigned long)i, (unsigned long)j];
+      self.fragIndex[key] = card;
+      [self->_fragStack addArrangedSubview:card];
+    }];
+
+    // 服务端联网搜索卡片（该轮下发过 server_tool_calls，或整条里有合并结果时挂一张）
+    BOOL hasServer = [round[@"server_tool_calls"] isKindOfClass:NSArray.class]
+                     && [round[@"server_tool_calls"] count] > 0;
+    if (hasServer) {
+      DSSearchResultCardView *sc = [[DSSearchResultCardView alloc] initWithFrame:CGRectZero];
+      sc.onLayoutChange = layoutChanged;
+      __weak __typeof(self) ws2 = self;
+      sc.onOpenURL = ^(NSURL *url) {
+        if ([ws2.delegate respondsToSelector:@selector(messageCell:didTapURL:)])
+          [ws2.delegate messageCell:ws2 didTapURL:url];
+      };
+      [sc applyServerToolCalls:t.serverCalls];
+      self.fragIndex[[NSString stringWithFormat:@"search:%lu", (unsigned long)i]] = sc;
+      [self->_fragStack addArrangedSubview:sc];
+    }
+
+    // 正文
+    NSString *content = [round[@"content"] isKindOfClass:NSString.class] ? round[@"content"] : @"";
+    if (content.length) {
+      UILabel *l = [[UILabel alloc] init];
+      l.numberOfLines = 0;
+      l.attributedText = [DSTheme bodyText:content color:[DSTheme labelPrimary]];
+      self.fragIndex[[NSString stringWithFormat:@"content:%lu", (unsigned long)i]] = l;
+      [self->_fragStack addArrangedSubview:l];
+    }
+  }];
+
+  // 引用来源（整条回答一份，放在正文之后）
+  if (t.citations.count) {
+    DSCitationListView *cites = [[DSCitationListView alloc] initWithFrame:CGRectZero];
+    __weak __typeof(self) ws3 = self;
+    cites.onOpenURL = ^(NSURL *url) {
+      if ([ws3.delegate respondsToSelector:@selector(messageCell:didTapURL:)])
+        [ws3.delegate messageCell:ws3 didTapURL:url];
+    };
+    [cites setCitations:t.citations];
+    _fragIndex[@"cites"] = cites;
+    [_fragStack addArrangedSubview:cites];
+  }
+
+  [self updateAssistantTexts:t];
+
+  // ---- 底部：状态 / 用量 / 分支 / 操作 ----
+  _statusLabel.text = t.statusNote;
+  _statusLabel.hidden = t.statusNote.length == 0;
+
+  NSString *usage = [self usageTextForTurn:t];
+  _usageLabel.text = usage;
+  _usageLabel.hidden = usage.length == 0;
+
+  BOOL hasBranch = t.branchTotal > 1;
+  _assistBranchBar.hidden = !hasBranch;
+  if (hasBranch) {
+    [_assistBranchBar setIndex:t.branchIndex total:t.branchTotal];
+    __weak __typeof(self) wsb = self;
+    _assistBranchBar.onPrev = ^{
+      if ([wsb.delegate respondsToSelector:@selector(messageCell:didSwitchBranch:)])
+        [wsb.delegate messageCell:wsb didSwitchBranch:-1];
+    };
+    _assistBranchBar.onNext = ^{
+      if ([wsb.delegate respondsToSelector:@selector(messageCell:didSwitchBranch:)])
+        [wsb.delegate messageCell:wsb didSwitchBranch:1];
+    };
+  }
+
+  NSDictionary *tail = t.tailRound;
+  NSString *tailContent = [tail[@"content"] isKindOfClass:NSString.class] ? tail[@"content"] : @"";
+  _btnCopy.hidden = t.streaming || tailContent.length == 0;
+  _btnRegen.hidden = t.streaming || t.rounds.count == 0;
+  BOOL footerEmpty = _usageLabel.hidden && _btnCopy.hidden && _btnRegen.hidden && !hasBranch;
+  _footerStack.hidden = footerEmpty;
 }
 
-- (void)toggleThink {
-  [self setThinkExpanded:!self.thinkExpanded];
-  // 高度变化后让所在表格刷新本行
+/// 结构没变时只刷文字/状态，避免流式每帧重建整条消息
+- (void)updateAssistantTexts:(DSTurn *)t {
+  [t.rounds enumerateObjectsUsingBlock:^(NSDictionary *round, NSUInteger i, BOOL *stop) {
+    NSString *reasoning = [round[@"reasoning"] isKindOfClass:NSString.class] ? round[@"reasoning"] : @"";
+    UIView *box = self.fragIndex[[NSString stringWithFormat:@"think:%lu", (unsigned long)i]];
+    if (box) {
+      UILabel *body = (UILabel *)[box viewWithTag:0x7A11];
+      if (body) {
+        body.attributedText = [DSTheme thinkText:reasoning color:[DSTheme labelTertiary]];
+        body.hidden = reasoning.length == 0;
+      }
+      UIButton *head = (UIButton *)[box viewWithTag:0x7A12];
+      if (head) {
+        BOOL streaming = t.streaming && i == t.rounds.count - 1;
+        [head setTitle:streaming ? DSStrThinking : DSStrThinkingDone forState:UIControlStateNormal];
+      }
+    }
+    UILabel *content = (UILabel *)self.fragIndex[[NSString stringWithFormat:@"content:%lu", (unsigned long)i]];
+    if (content) {
+      NSString *text = [round[@"content"] isKindOfClass:NSString.class] ? round[@"content"] : @"";
+      content.attributedText = [DSTheme bodyText:text color:[DSTheme labelPrimary]];
+    }
+    NSArray *calls = [round[@"tool_calls"] isKindOfClass:NSArray.class] ? round[@"tool_calls"] : @[];
+    [calls enumerateObjectsUsingBlock:^(NSDictionary *call, NSUInteger j, BOOL *stop2) {
+      DSToolCardView *card = (DSToolCardView *)self.fragIndex[
+          [NSString stringWithFormat:@"tool:%lu:%lu", (unsigned long)i, (unsigned long)j]];
+      if (!card) return;
+      NSString *cid = [call[@"id"] isKindOfClass:NSString.class] ? call[@"id"] : @"";
+      NSDictionary *result = cid.length ? t.toolResults[cid] : nil;
+      if (result) {
+        BOOL ok = [result[@"toolOk"] isKindOfClass:NSNumber.class] ? [result[@"toolOk"] boolValue] : YES;
+        NSString *text = [result[@"content"] isKindOfClass:NSString.class] ? result[@"content"] : @"";
+        NSInteger ms = [result[@"toolMs"] isKindOfClass:NSNumber.class] ? [result[@"toolMs"] integerValue] : 0;
+        [card applyStatus:ok ? DSToolStatusOK : DSToolStatusFailed text:text milliseconds:ms];
+      }
+    }];
+  }];
+
+  NSString *usage = [self usageTextForTurn:t];
+  _usageLabel.text = usage;
+  _usageLabel.hidden = usage.length == 0;
+
+  NSDictionary *tail = t.tailRound;
+  NSString *tailContent = [tail[@"content"] isKindOfClass:NSString.class] ? tail[@"content"] : @"";
+  _btnCopy.hidden = t.streaming || tailContent.length == 0;
+  _statusLabel.text = t.statusNote;
+  _statusLabel.hidden = t.statusNote.length == 0;
+}
+
+/// 整条回答只显示一行合并用量（与 Web 版一致）
+- (NSString *)usageTextForTurn:(DSTurn *)t {
+  long long p = 0, c = 0;
+  BOOL any = NO;
+  for (NSDictionary *r in t.rounds) {
+    id pp = r[@"prompt_tokens"], cc = r[@"completion_tokens"];
+    if (pp) { p += [pp longLongValue]; any = YES; }
+    if (cc) { c += [cc longLongValue]; any = YES; }
+  }
+  if (!any) return @"";
+  return [NSString stringWithFormat:@"↑%lld ↓%lld", p, c];
+}
+
+#pragma mark - 思考块
+
+- (UIView *)thinkBoxForRound:(NSDictionary *)round
+                       index:(NSUInteger)index
+                layoutChanged:(void (^)(void))layoutChanged {
+  UIView *box = [[UIView alloc] init];
+  box.translatesAutoresizingMaskIntoConstraints = NO;
+
+  UIView *bar = [[UIView alloc] init];
+  bar.translatesAutoresizingMaskIntoConstraints = NO;
+  bar.backgroundColor = [DSTheme borderL3];
+  [box addSubview:bar];
+
+  UIButton *head = [UIButton buttonWithType:UIButtonTypeSystem];
+  head.translatesAutoresizingMaskIntoConstraints = NO;
+  head.tag = 0x7A12;
+  head.contentHorizontalAlignment = UIControlContentHorizontalAlignmentLeft;
+  head.titleLabel.font = [DSTheme thinkHeadFont];
+  [head setTitleColor:[DSTheme labelSecondary] forState:UIControlStateNormal];
+  BOOL streaming = (index == self.turn.rounds.count - 1) && self.turn.streaming;
+  [head setTitle:streaming ? DSStrThinking : DSStrThinkingDone forState:UIControlStateNormal];
+
+  UILabel *body = [[UILabel alloc] init];
+  body.translatesAutoresizingMaskIntoConstraints = NO;
+  body.tag = 0x7A11;
+  body.numberOfLines = 0;
+  NSString *reasoning = [round[@"reasoning"] isKindOfClass:NSString.class] ? round[@"reasoning"] : @"";
+  body.attributedText = [DSTheme thinkText:reasoning color:[DSTheme labelTertiary]];
+
+  // 流式中默认展开；结束后默认折叠（对齐 thinkingAutoFold 默认行为），用户点开过则保持
+  BOOL expanded = streaming || [self.thinkExpanded containsObject:@(index)];
+  body.hidden = !expanded;
+
+  __weak __typeof(self) ws = self;
+  head.accessibilityHint = [NSString stringWithFormat:@"%lu", (unsigned long)index];
+  [head addTarget:self action:@selector(thinkHeadTapped:) forControlEvents:UIControlEventTouchUpInside];
+  objc_setAssociatedObject(head, "ds.think.index", @(index), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+  objc_setAssociatedObject(head, "ds.think.body", body, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+  objc_setAssociatedObject(head, "ds.think.layout", layoutChanged, OBJC_ASSOCIATION_COPY_NONATOMIC);
+  (void)ws;
+
+  UIStackView *inner = [[UIStackView alloc] initWithArrangedSubviews:@[head, body]];
+  inner.translatesAutoresizingMaskIntoConstraints = NO;
+  inner.axis = UILayoutConstraintAxisVertical;
+  inner.spacing = 4;
+  inner.alignment = UIStackViewAlignmentFill;
+  [box addSubview:inner];
+
+  [NSLayoutConstraint activateConstraints:@[
+    [bar.leadingAnchor constraintEqualToAnchor:box.leadingAnchor],
+    [bar.topAnchor constraintEqualToAnchor:box.topAnchor],
+    [bar.bottomAnchor constraintEqualToAnchor:box.bottomAnchor],
+    [bar.widthAnchor constraintEqualToConstant:[DSTheme thinkBarWidth]],
+    [inner.leadingAnchor constraintEqualToAnchor:box.leadingAnchor constant:[DSTheme thinkBarGap]],
+    [inner.trailingAnchor constraintEqualToAnchor:box.trailingAnchor],
+    [inner.topAnchor constraintEqualToAnchor:box.topAnchor constant:2],
+    [inner.bottomAnchor constraintEqualToAnchor:box.bottomAnchor constant:-2],
+  ]];
+
+  self.fragIndex[[NSString stringWithFormat:@"think:%lu", (unsigned long)index]] = box;
+  self.fragIndex[[NSString stringWithFormat:@"think:%lu:body", (unsigned long)index]] = body;
+  return box;
+}
+
+- (void)thinkHeadTapped:(UIButton *)sender {
+  NSNumber *idx = objc_getAssociatedObject(sender, "ds.think.index");
+  UILabel *body = objc_getAssociatedObject(sender, "ds.think.body");
+  void (^layoutChanged)(void) = objc_getAssociatedObject(sender, "ds.think.layout");
+  if (!idx || !body) return;
+  BOOL nowHidden = !body.hidden;
+  body.hidden = nowHidden;
+  if (nowHidden) [self.thinkExpanded removeObject:idx];
+  else [self.thinkExpanded addObject:idx];
+  if (layoutChanged) layoutChanged();
+}
+
+#pragma mark - 布局变化
+
+- (void)notifyHeightChanged {
   UITableView *tv = [self containingTableView];
-  [tv beginUpdates];
-  [tv endUpdates];
+  if (!tv) return;
+  [UIView performWithoutAnimation:^{
+    [tv beginUpdates];
+    [tv endUpdates];
+  }];
 }
 
 - (UITableView *)containingTableView {
@@ -277,8 +617,16 @@
   return [v isKindOfClass:UITableView.class] ? (UITableView *)v : nil;
 }
 
+#pragma mark - 交互
+
 - (void)onCopyTapped {
-  NSString *text = self.message[@"content"] ?: @"";
+  NSString *text = nil;
+  if (self.turn.role == DSTurnRoleUser) {
+    text = self.turn.anchor[@"content"] ?: @"";
+  } else {
+    NSDictionary *tail = self.turn.tailRound;
+    text = [tail[@"content"] isKindOfClass:NSString.class] ? tail[@"content"] : @"";
+  }
   if (text.length == 0) return;
   UIPasteboard.generalPasteboard.string = text;
   if ([self.delegate respondsToSelector:@selector(messageCellDidCopy:)]) {
@@ -292,11 +640,21 @@
   }
 }
 
+- (NSDictionary *)jsonObjectFromString:(NSString *)s {
+  if (s.length == 0) return @{};
+  NSData *d = [s dataUsingEncoding:NSUTF8StringEncoding];
+  id obj = d ? [NSJSONSerialization JSONObjectWithData:d options:0 error:NULL] : nil;
+  return [obj isKindOfClass:NSDictionary.class] ? obj : @{};
+}
+
 - (void)prepareForReuse {
   [super prepareForReuse];
-  _message = nil;
-  _thinkExpanded = NO;
+  _turn = nil;
+  _signature = nil;
+  [_thinkExpanded removeAllObjects];
+  [self clearFragments];
   _userBubble.hidden = YES;
+  _userFoot.hidden = YES;
   _assistStack.hidden = YES;
 }
 

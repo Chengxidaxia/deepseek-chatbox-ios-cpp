@@ -58,6 +58,28 @@ int main() {
     CHECK(c2.messages.size() == 1 && c2.messages[0].reasoning == "思考中", "消息思考字段往返");
     CHECK(c2.messages[0].toolCalls.size() == 1 && c2.messages[0].toolCalls[0].name == "calculator", "tool_calls 往返");
 
+    // UI 附加字段（分支候选）必须原样透传，否则保存会话时会丢
+    Message um; um.id = "u1"; um.role = "user"; um.content = "问题";
+    um.extra = json{{"branches", json::array({json{{"content","答案A"}}, json{{"content","答案B"}}})},
+                    {"branchIndex", 1}};
+    json uj = um.toJson();
+    CHECK(uj["branches"].size() == 2 && uj["branchIndex"] == 1, "user 消息附加字段写入");
+    auto um2 = Message::fromJson(uj);
+    CHECK(um2.extra["branches"].size() == 2 && um2.extra["branchIndex"] == 1, "附加字段往返");
+
+    // 服务端工具调用 / 引用 / 工具结果状态
+    Message am; am.id = "a1"; am.role = "assistant";
+    am.serverToolCalls = json::array({json{{"type","web_search"},{"status","searching"}}});
+    am.annotations = json::array();
+    json aj = Message::fromJson(am.toJson()).toJson();
+    CHECK(aj["server_tool_calls"].size() == 1, "server_tool_calls 往返");
+    CHECK(aj["annotations"].is_array() && aj["annotations"].empty(), "空 annotations 不被丢弃");
+
+    Message tm; tm.id = "t1"; tm.role = "tool"; tm.name = "calculator";
+    tm.content = "2"; tm.toolOk = false; tm.toolMs = 12;
+    auto tm2 = Message::fromJson(tm.toJson());
+    CHECK(tm2.toolOk == false && tm2.toolMs == 12, "tool 结果状态往返");
+
     Settings s;
     s.model = "deepseek-chat"; s.thinking = false; s.effort = "max"; s.contextLimit = 32000;
     auto s2 = Settings::fromJson(s.toJson());
