@@ -102,9 +102,10 @@ jobs:
           if-no-files-found: error
 
       # 「编译一次算一次构建」：云编译也计数，成功失败都记。
+      # 提交信息里带 [no count] 时跳过（发版手动定号，不让这次编译再叠一层）。
       # master 上回写仓库（提交信息带 [skip ci]，不会再触发一轮）；tag 构建是 detached HEAD，只展示不回写。
       - name: Record build count
-        if: always()
+        if: always() && !contains(github.event.head_commit.message || '', '[no count]')
         env:
           RESULT: ${{ job.status == 'success' && 'success' || 'failed' }}
         run: |
