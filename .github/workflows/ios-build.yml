@@ -65,8 +65,9 @@ jobs:
             N="${TAG##*.build}"
             echo "tag 构建：从 $TAG 取号 $N"
           else
-            N=$(python3 -c "import json;print(int(json.load(open('build-count.json'))['build'])+1)")
-            echo "分支构建：build+1 = $N"
+            # 号 = base + 已有事件行数 + 1；这里只算不写，真正那行在 Record build count 里追加
+            N=$(python3 scripts/bump-build.py --next)
+            echo "分支构建：下一行事件 = $N"
           fi
           case "$N" in ''|*[!0-9]*) echo "::error::构建号解析失败：$N"; exit 1;; esac
           echo "BUILD_NUMBER=$N" >> "$GITHUB_ENV"
@@ -142,9 +143,11 @@ jobs:
           [ "$GITHUB_REF" = "refs/heads/master" ] || exit 0
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add build-count.json
+          # 只提交流水账文件：build-count.json 的 base 不再变化，事件行只追加，
+          # 所以 pull --rebase 不会冲突（.gitattributes 里设了 merge=union）
+          git add build-events.jsonl build-count.json
           git diff --cached --quiet && exit 0
-          N=$(python3 -c "import json;print(json.load(open('build-count.json'))['build'])")
+          N=$(python3 scripts/bump-build.py --show | head -1 | sed 's/^build=//; s/ .*//')
           git commit -q -m "chore(build): 第 ${N} 次编译 [skip ci]"
           for i in 1 2 3; do
             git pull --rebase -q origin master && git push -q origin master && break || sleep 3

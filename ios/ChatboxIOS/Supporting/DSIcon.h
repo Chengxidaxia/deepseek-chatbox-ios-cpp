@@ -33,6 +33,7 @@ typedef NS_ENUM(NSInteger, DSIconName) {
   DSIconLightning,     // 快速模式
   DSIconBrain,         // 专家模式
   DSIconSearch,        // 联网搜索开关
+  DSIconMenu,          // 顶栏三横线（打开会话列表）
 };
 
 @interface DSIcon : NSObject

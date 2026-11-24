@@ -99,6 +99,10 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
                            delegate:(id<DSBoxChatDelegate>)delegate
                              apiKey:(std::string)apiKey;
 - (void)finishAgentLoopWithError:(NSString *)message delegate:(id<DSBoxChatDelegate>)delegate;
+- (BOOL)streamChatImplWithConversation:(NSString *)convId
+                        continuePrefix:(NSString *)continuePrefix
+                              delegate:(id<DSBoxChatDelegate>)delegate
+                                 error:(NSError **)error;
 - (void)emitToDelegate:(id<DSBoxChatDelegate>)delegate
                   type:(DSBoxStreamEventType)type
                   text:(NSString *)text
@@ -122,6 +126,16 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
     // 真正的解析推迟到第一次 token_count，避免拖慢冷启动。
     NSString *tokPath = [[NSBundle mainBundle] pathForResource:@"tokenizer" ofType:@"bin"];
     if (tokPath) ds::tok::setDataFile(StdStr(tokPath));
+
+    // 工具定义必须在这里装好：发请求时用的是 ToolEngine::search()，而它只查 defs_。
+    // 以前只在「设置里看工具列表」时才 loadDefinitions，没进过那个页面的话 defs_ 是空的，
+    // 于是智能搜索一个工具都带不上去，表现就是「开了搜索也没反应」。
+    NSString *defPath = [[NSBundle mainBundle] pathForResource:@"tool_defs" ofType:@"json"];
+    if (defPath) {
+      std::string terr;
+      ds::ToolEngine::instance().loadDefinitions(StdStr(defPath), &terr);
+      if (!terr.empty()) NSLog(@"工具定义加载失败: %@", NSStr(terr));
+    }
   }
   return self;
 }
@@ -197,11 +211,15 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
 
 - (NSArray<NSDictionary *> *)messagesOfConversation:(NSString *)convId {
   if (!store_) return @[];
-  auto c = store_->getConversation(StdStr(convId));
-  if (!c) return @[];
-  NSMutableArray *out = [NSMutableArray arrayWithCapacity:c->messages.size()];
-  for (const auto &m : c->messages) [out addObject:ToDict(m.toJson())];
-  return out;
+  try {
+    auto c = store_->getConversation(StdStr(convId));
+    if (!c) return @[];
+    NSMutableArray *out = [NSMutableArray arrayWithCapacity:c->messages.size()];
+    for (const auto &m : c->messages) [out addObject:ToDict(m.toJson())];
+    return out;
+  } catch (...) {
+    return @[];
+  }
 }
 
 - (BOOL)updateConversation:(NSString *)convId patch:(NSDictionary *)patch error:(NSError **)error {
@@ -323,15 +341,33 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
 #pragma mark - 设置 / UI
 - (NSDictionary *)settings {
   if (!store_) return @{};
-  Settings s = store_->settings();
-  s.hasKey = store_->hasKeyEncrypted();
-  return ToDict(s.toJson());
+  // 这些方法都在主线程被 UI 直接调用，C++ 异常漏出去就是闪退，一律兜住返回空/默认值
+  try {
+    Settings s = store_->settings();
+    s.hasKey = store_->hasKeyEncrypted();
+    return ToDict(s.toJson());
+  } catch (...) {
+    return @{};
+  }
 }
 - (void)saveSettingsPatch:(NSDictionary *)patch {
-  if (store_) store_->saveSettings(ToJson(patch));
+  if (!store_) return;
+  try {
+    store_->saveSettings(ToJson(patch));
+  } catch (const std::exception &ex) {
+    NSLog(@"[settings] 保存失败: %@", NSStr(ex.what()));
+  } catch (...) {
+    NSLog(@"[settings] 保存失败（未知异常）");
+  }
 }
-- (NSDictionary *)uiState { return store_ ? ToDict(store_->ui().toJson()) : @{}; }
-- (void)saveUIPatch:(NSDictionary *)patch { if (store_) store_->saveUI(ToJson(patch)); }
+- (NSDictionary *)uiState {
+  if (!store_) return @{};
+  try { return ToDict(store_->ui().toJson()); } catch (...) { return @{}; }
+}
+- (void)saveUIPatch:(NSDictionary *)patch {
+  if (!store_) return;
+  try { store_->saveUI(ToJson(patch)); } catch (...) { }
+}
 
 #pragma mark - 分组
 - (NSArray<NSDictionary *> *)allGroups {
@@ -507,7 +543,13 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
     }
     auto hits = query.empty() ? std::vector<std::pair<std::string, json>>{}
                               : eng.search(query, st.toolTopK);
-    for (const auto &h : hits) toolDefs.push_back(h.second);
+    for (const auto &h : hits) {
+      // 「智能搜索」开关真正生效的地方：关掉就不把联网类工具发给模型。
+      // 以前 search/readUrl 只是存了个值，buildPayload 根本没用它，所以开关点了没反应。
+      const std::string &n = h.first;
+      if (!st.search && (n == "web_search" || n == "fetch_url" || n == "http_request")) continue;
+      toolDefs.push_back(h.second);
+    }
   }
   return ToDict(ApiClient::buildPayload(c->messages, st, toolDefs));
 }
@@ -518,10 +560,29 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
   return [self streamChatWithConversation:convId continuePrefix:nil delegate:delegate error:error];
 }
 
+/// 发起请求前的准备工作（读库、取工具定义、补图片 dataUrl）是**同步跑在调用线程**上的，
+/// 里面全是 C++ 调用。异常一旦漏出去就是 std::terminate（SIGABRT，界面直接闪退），
+/// 所以外壳兜住，转成 NSError 交给 UI 弹提示。
 - (BOOL)streamChatWithConversation:(NSString *)convId
                     continuePrefix:(NSString *)continuePrefix
                           delegate:(id<DSBoxChatDelegate>)delegate
                              error:(NSError **)error {
+  try {
+    return [self streamChatImplWithConversation:convId continuePrefix:continuePrefix
+                                       delegate:delegate error:error];
+  } catch (const std::exception &ex) {
+    if (error) *error = MakeErr([NSString stringWithFormat:@"准备请求时出错：%@", NSStr(ex.what())]);
+    return NO;
+  } catch (...) {
+    if (error) *error = MakeErr(@"准备请求时出错（未知异常）");
+    return NO;
+  }
+}
+
+- (BOOL)streamChatImplWithConversation:(NSString *)convId
+                        continuePrefix:(NSString *)continuePrefix
+                              delegate:(id<DSBoxChatDelegate>)delegate
+                                 error:(NSError **)error {
   if (!store_ || !api_) { if (error) *error = MakeErr(@"核心未初始化"); return NO; }
   if (unlockedKey_.empty()) { if (error) *error = MakeErr(@"请先解锁 Key"); return NO; }
   auto c = store_->getConversation(StdStr(convId));
@@ -562,7 +623,13 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
     }
     auto hits = query.empty() ? std::vector<std::pair<std::string, json>>{}
                               : eng.search(query, st.toolTopK);
-    for (const auto &h : hits) toolDefs.push_back(h.second);
+    for (const auto &h : hits) {
+      // 「智能搜索」开关真正生效的地方：关掉就不把联网类工具发给模型。
+      // 以前 search/readUrl 只是存了个值，buildPayload 根本没用它，所以开关点了没反应。
+      const std::string &n = h.first;
+      if (!st.search && (n == "web_search" || n == "fetch_url" || n == "http_request")) continue;
+      toolDefs.push_back(h.second);
+    }
   }
   std::string apiKey = unlockedKey_;  // 复制到请求线程，避免竞态
 

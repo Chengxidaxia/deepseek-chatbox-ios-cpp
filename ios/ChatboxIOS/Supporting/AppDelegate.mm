@@ -8,6 +8,9 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <exception>
+#include <string>
+
 // ---------------------------------------------------------------------------
 // 崩溃兜底：ad-hoc 包拿不到系统 .ips 日志，出问题只能靠这个。
 //
@@ -47,31 +50,54 @@ static NSString *DSCrashPath(void) {
   return g_crashPath[0] ? [NSString stringWithUTF8String:g_crashPath] : nil;
 }
 
-static void DSWriteCrashText(NSString *text) {
+/// 追加写。**不能用 writeToFile:atomically: 覆盖**：ObjC 异常先写完整调用栈，
+/// 运行时随后 abort() 触发 SIGABRT，信号处理再写一行——覆盖就把最有价值的调用栈擦掉了
+/// （build110 真机上就只拿到「致命信号 6」，栈没了，正是这个原因）。
+static void DSAppendCrashText(NSString *text) {
   NSString *p = DSCrashPath();
-  if (!p) return;
-  [text writeToFile:p atomically:YES encoding:NSUTF8StringEncoding error:NULL];
+  if (!p || text.length == 0) return;
+  NSData *data = [text dataUsingEncoding:NSUTF8StringEncoding];
+  if (!data) return;
+  NSFileManager *fm = [NSFileManager defaultManager];
+  if (![fm fileExistsAtPath:p]) {
+    [data writeToFile:p atomically:YES];
+    return;
+  }
+  NSFileHandle *fh = [NSFileHandle fileHandleForWritingAtPath:p];
+  if (!fh) return;
+  @try {
+    [fh seekToEndOfFile];
+    [fh writeData:data];
+  } @catch (NSException *e) {
+    NSLog(@"[crash] 写日志失败: %@", e.reason);
+  } @finally {
+    [fh closeFile];
+  }
 }
 
 static void DSExceptionHandler(NSException *e) {
   NSString *text = [NSString stringWithFormat:
-      @"时间: %@\n版本: %@ (%@)\n类型: ObjC 未捕获异常\n\n%@: %@\n\n调用栈:\n%@\n",
+      @"时间: %@\n版本: %@ (%@)\n类型: ObjC 未捕获异常\n\n%@: %@\n\n调用栈:\n%@\n\n",
       [NSDate date],
       [[NSBundle mainBundle] infoDictionary][@"CFBundleShortVersionString"],
       [[NSBundle mainBundle] infoDictionary][@"CFBundleVersion"],
       e.name, e.reason ?: @"(无描述)",
       [e.callStackSymbols componentsJoinedByString:@"\n"]];
-  DSWriteCrashText(text);
+  DSAppendCrashText(text);
   NSLog(@"[crash] %@", text);
 }
 
 static void DSSignalHandler(int sig) {
-  // 这里不能碰 Foundation：只用 open/write，保证不会死锁
+  // 这里不能碰 Foundation：只用 open/write，保证不会死锁。
+  // O_APPEND 而不是 O_TRUNC —— 保留前面写进去的异常栈。
   if (g_crashPath[0]) {
-    int fd = open(g_crashPath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    int fd = open(g_crashPath, O_WRONLY | O_CREAT | O_APPEND, 0644);
     if (fd >= 0) {
-      char buf[128];
-      int n = snprintf(buf, sizeof(buf), "类型: 致命信号 %d %s\n（无调用栈：信号上下文里不能调 Foundation）\n",
+      char buf[160];
+      int n = snprintf(buf, sizeof(buf),
+                       "类型: 致命信号 %d %s\n"
+                       "（信号上下文不能调 Foundation，所以这里没有调用栈；"
+                       "上面若有「ObjC 未捕获异常」或「C++ 异常」段落，那才是根因）\n\n",
                        sig, DSSignalName(sig));
       if (n > 0) { ssize_t w = write(fd, buf, (size_t)n); (void)w; }
       close(fd);
@@ -81,12 +107,31 @@ static void DSSignalHandler(int sig) {
   raise(sig);
 }
 
+/// C++ 异常没被 catch 时 libc++ 会走 std::terminate（默认只往 stderr 打一行然后 abort）。
+/// 这里接住，把异常类型和 what() 写进同一个日志，再 abort —— 这样 SIGABRT 前面就有一行根因。
+static void DSTerminateHandler(void) {
+  NSString *detail = @"类型: C++ 异常未被捕获（std::terminate，没有 what）\n";
+  if (std::current_exception()) {
+    try {
+      std::rethrow_exception(std::current_exception());
+    } catch (const std::exception &e) {
+      NSString *what = e.what() ? [NSString stringWithUTF8String:e.what()] : nil;
+      detail = [NSString stringWithFormat:@"类型: C++ 异常未被捕获\nwhat: %@\n", what ?: @"(非 UTF-8)"];
+    } catch (...) {
+      detail = @"类型: C++ 异常（非 std::exception）\n";
+    }
+  }
+  DSAppendCrashText([detail stringByAppendingString:@"\n"]);
+  abort();
+}
+
 @implementation AppDelegate
 
 - (BOOL)application:(UIApplication *)application
 didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
   DSCrashPathInit();
   NSSetUncaughtExceptionHandler(&DSExceptionHandler);
+  std::set_terminate(DSTerminateHandler);
   static int kSigs[] = {SIGABRT, SIGSEGV, SIGBUS, SIGFPE, SIGILL, SIGTRAP};
   for (size_t i = 0; i < sizeof(kSigs) / sizeof(kSigs[0]); i++) signal(kSigs[i], DSSignalHandler);
 

@@ -199,6 +199,37 @@
 > 官方欢迎页那句问候语**不在** 806 条 Localizable 里，二进制里也搜不到中文，
 > 推测由服务端下发，所以没有硬编一个假文案，空态只用可验证的官方 key。
 
+## 6.2 从 `Assets.car` 的资源名反推界面结构（2026-11-24 第二次对齐）
+
+`Assets.car` 的位图解不开，但**资源名是明文**：直接扫可打印串就能拿到 200 多个路径。
+这比看类名更接近「哪块 UI 有什么」：
+
+| 资源名 | 说明 |
+|---|---|
+| `Ic_menu_outline_24.svg` | 顶栏左侧的三横线 → **官方是抽屉/列表入口，不是返回箭头** |
+| `chat/top_bar/modelChoose` + `modelChooseCheckmark` | **模型选择在顶栏**，点开是带勾的列表 |
+| `chat/top_bar/sessionRefresh`、`chat/top_bar/closeShare` | 顶栏还有刷新/关闭分享 |
+| `chat/bottom_bar/{add,voice,send,stop,deep_think,searching,text,pencil,promptSuggestionArrow}` | 底部工具条：加号、语音、发送、停止、深度思考、搜索、推荐提示词 |
+| `chat/file_upload_menu/{paperclip,photo,camera,folder24}` | 加号展开的是相册/拍照/文件 |
+| `chat/model_icon/{quick,expert,vision}` + `_fill` | 三个模型图标仍在资源里（但 UI 已不再用「快速/专家/识图」这套叫法） |
+| `chat/message/{copyAction,likeAction,dislikeAction,regenerateAction,shareAction,tts_play,tts_stop,referenceListV2,editAction,moreAction}` | 消息操作栏：复制、赞/踩、重试、分享、朗读、引用列表、编辑、更多 |
+| `chat/think/{arrow,thinkCollapse}` | 思考块的箭头与折叠 |
+| `chat/fragment/{search,open,find}` + `_failed` | 三类工具 Fragment 的图标与失败态 |
+| `chat/button/chat_continue` | 「继续生成」 |
+| `settings/{moon,sun,fontSize*,letter,phone,microphone,data_config,...}` | 设置页条目 |
+
+据此这一轮改的：
+
+| 项 | 改动 |
+|---|---|
+| 顶栏 | 左 ☰（`DSIconMenu`，点开回到会话列表）、**中间模型选择**（模型名 + ⌄，点开是带勾列表）、右 ＋ |
+| 底部工具条 | 去掉模型 chip（它属于顶栏），只留 深度思考 / 智能搜索 / ＋ / 语音 / 发送（停止） |
+| 智能搜索开关 | 以前 `search`/`readUrl` 只是存了个值，`buildPayload` 根本没用 —— 现在关掉就**真的不把 `web_search`/`fetch_url`/`http_request` 发给模型** |
+| 工具定义装载 | 以前只在「设置里看工具列表」时才 `loadDefinitions`，没进过那页的话 `defs_` 是空的，智能搜索一个工具都带不上去；现在 `DSBoxService -init` 里一次性装载 |
+
+> 仍未对齐（缺参考）：气泡/卡片的具体间距与字号、欢迎页图形、侧边抽屉的滑动手感。
+> 这些只有拿到官方运行截图才能抠，资源名给不出数值。
+
 ## 7. 构建状态
 
 | 项 | 值 |

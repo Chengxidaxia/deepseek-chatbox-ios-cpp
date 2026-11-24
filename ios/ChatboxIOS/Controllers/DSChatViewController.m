@@ -9,6 +9,7 @@
 
 #import "DSChatViewController.h"
 #import "DSBoxService.h"
+#import "DSConversationListController.h"
 #import "DSMessageCell.h"
 #import "DSTurn.h"
 #import "DSFragmentView.h"
@@ -49,7 +50,8 @@
 @property (nonatomic, strong) UIVisualEffectView *composer;
 @property (nonatomic, strong) UIButton *thinkChip;
 @property (nonatomic, strong) UIButton *searchChip;
-@property (nonatomic, strong) UIButton *modelChip;
+/// 顶栏中间的模型选择（官方 Assets.car 里是 chat/top_bar/modelChoose + modelChooseCheckmark）
+@property (nonatomic, strong) UIButton *modelButton;
 // 模型 id → 展示名（来自 /models，取不到就用 id 本身）
 @property (nonatomic, strong) NSMutableDictionary<NSString *, NSString *> *modelNames;
 @property (nonatomic, strong) NSArray<NSDictionary *> *modelList;
@@ -108,7 +110,8 @@
   [self buildTableView];
   [self buildWelcome];
   [self buildComposer];
-  [self loadModelList];   // 异步取模型名，只影响 chip 上的显示，不阻塞进入会话
+  [self buildNavigationBar];
+  [self loadModelList];   // 异步取模型名，只影响顶栏的显示，不阻塞进入会话
   [self refreshEmptyState];
 
   self.navigationItem.rightBarButtonItem =
@@ -120,6 +123,47 @@
   [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillChange:)
       name:UIKeyboardWillChangeFrameNotification object:nil];
   [self scrollToBottomAnimated:NO];
+}
+
+/// 顶栏按官方资源结构排：左 ☰（`Ic_menu_outline_24`，开会话列表）、
+/// 中间模型选择（`chat/top_bar/modelChoose`，点开是带勾的列表）、右 ＋（新对话）。
+- (void)buildNavigationBar {
+  self.navigationItem.leftBarButtonItem =
+      [[UIBarButtonItem alloc] initWithImage:[DSIcon image:DSIconMenu size:22]
+                                       style:UIBarButtonItemStylePlain
+                                      target:self
+                                      action:@selector(openSessionList)];
+
+  UIButton *b = [UIButton buttonWithType:UIButtonTypeSystem];
+  b.titleLabel.font = [UIFont systemFontOfSize:16 weight:UIFontWeightSemibold];
+  [b setTitleColor:[DSTheme labelPrimary] forState:UIControlStateNormal];
+  [b setImage:[DSIcon image:DSIconChevronDown size:14] forState:UIControlStateNormal];
+  b.tintColor = [DSTheme labelTertiary];
+  // 箭头放右边（官方 modelChoose 是「模型名 ⌄」）
+  b.semanticContentAttribute = UISemanticContentAttributeForceRightToLeft;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+  b.imageEdgeInsets = UIEdgeInsetsMake(0, 4, 0, -4);
+  b.titleEdgeInsets = UIEdgeInsetsMake(0, -4, 0, 4);
+  b.contentEdgeInsets = UIEdgeInsetsMake(0, 6, 0, 6);
+#pragma clang diagnostic pop
+  [b addTarget:self action:@selector(modelTapped) forControlEvents:UIControlEventTouchUpInside];
+  _modelButton = b;
+  self.navigationItem.titleView = b;
+  [self refreshChips];   // 先把当前模型名填上，等 /models 回来再刷新成展示名
+}
+
+/// ☰：回到会话列表。直接 push 进来的会话可能不是从列表来的，那就把列表 push 上去。
+- (void)openSessionList {
+  UINavigationController *nav = self.navigationController;
+  if (!nav) return;
+  for (UIViewController *vc in nav.viewControllers.reverseObjectEnumerator) {
+    if ([vc isKindOfClass:DSConversationListController.class]) {
+      [nav popToViewController:vc animated:YES];
+      return;
+    }
+  }
+  [nav pushViewController:[[DSConversationListController alloc] init] animated:YES];
 }
 
 - (void)dealloc { [[NSNotificationCenter defaultCenter] removeObserver:self]; }
@@ -207,17 +251,12 @@
   hairline.backgroundColor = [DSTheme borderL2];
   [_composer.contentView addSubview:hairline];
 
-  // ---- 开关 chips：深度思考 / 智能搜索 / 模型 ----
-  // 文案取自官方 2.7.1：messageR1Button=深度思考、messageSearchButton=智能搜索
+  // ---- 开关 chips：深度思考 / 智能搜索 ----
+  // 文案取自官方 2.7.1：messageR1Button=深度思考、messageSearchButton=智能搜索；
+  // 官方底部工具条的资源名是 chat/bottom_bar/{deep_think,searching,add,voice,send,stop}，
+  // 模型选择不在底部，而在顶栏（chat/top_bar/modelChoose），所以这里不再放模型 chip。
   _thinkChip = [self chipButtonWithTitle:DSStrDeepThink icon:DSIconBrain action:@selector(toggleThinking)];
   _searchChip = [self chipButtonWithTitle:DSStrSmartSearch icon:DSIconSearch action:@selector(toggleSearch)];
-  _modelChip = [self chipButtonWithTitle:DSStrModelDefault icon:DSIconLightning action:@selector(modelTapped)];
-  // 模型名长度不可控（/models 返回什么就显示什么），允许压缩并截断，别把发送钮挤出屏幕
-  _modelChip.titleLabel.lineBreakMode = NSLineBreakByTruncatingTail;
-  [_modelChip setContentCompressionResistancePriority:UILayoutPriorityDefaultLow
-                                             forAxis:UILayoutConstraintAxisHorizontal];
-  [_modelChip setContentHuggingPriority:UILayoutPriorityDefaultLow
-                                forAxis:UILayoutConstraintAxisHorizontal];
 
   // ---- 附件条 ----
   _attachStrip = [[DSAttachmentStrip alloc] initWithFrame:CGRectZero];
@@ -301,7 +340,7 @@
                                           forAxis:UILayoutConstraintAxisHorizontal];
 
   UIStackView *tools = [[UIStackView alloc] initWithArrangedSubviews:
-      @[_thinkChip, _searchChip, _modelChip, spacer, _attachButton, _micButton, _sendButton, _stopButton]];
+      @[_thinkChip, _searchChip, spacer, _attachButton, _micButton, _sendButton, _stopButton]];
   tools.translatesAutoresizingMaskIntoConstraints = NO;
   tools.axis = UILayoutConstraintAxisHorizontal;
   tools.alignment = UIStackViewAlignmentCenter;
@@ -400,7 +439,6 @@
 
   [self styleChip:_thinkChip on:thinking];
   [self styleChip:_searchChip on:search];
-  [self styleChip:_modelChip on:NO];
 }
 
 - (void)styleChip:(UIButton *)chip on:(BOOL)on {
@@ -418,11 +456,10 @@
 - (void)refreshChips {
   NSDictionary *s = [[DSBoxService shared] settings];
   NSString *model = s[@"model"] ?: @"deepseek-flash";
-  // 官方 2.7.1 已经取消「快速/专家/识图」三档，这里只显示当前模型的展示名，
-  // 点开是真实模型列表（/models，取不到就用内置兜底）。
+  // 官方 2.7.1 已经取消「快速/专家/识图」三档，顶栏直接显示当前模型的展示名，
+  // 点开是真实模型列表（/models，取不到就用 id 本身）。
   NSString *title = self.modelNames[model] ?: model;
-  [_modelChip setTitle:title forState:UIControlStateNormal];
-  [_modelChip setImage:[DSIcon image:DSIconLightning size:13] forState:UIControlStateNormal];
+  [self.modelButton setTitle:title forState:UIControlStateNormal];
   [self applyChipStyles];
 }
 
@@ -698,8 +735,8 @@
     }]];
   }
   [sheet addAction:[UIAlertAction actionWithTitle:DSStrCancel style:UIAlertActionStyleCancel handler:nil]];
-  sheet.popoverPresentationController.sourceView = self.modelChip;
-  sheet.popoverPresentationController.sourceRect = self.modelChip.bounds;
+  sheet.popoverPresentationController.sourceView = self.modelButton;
+  sheet.popoverPresentationController.sourceRect = self.modelButton.bounds;
   [self presentViewController:sheet animated:YES completion:nil];
 }
 

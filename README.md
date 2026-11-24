@@ -57,30 +57,44 @@ ctest --test-dir .build/native --output-on-failure
 
 ## 构建计数
 
-口径：**只要发起过一次编译，就算一次构建**，成功失败都算。
+口径：**只要发起过一次编译，就算一次构建**，成功失败都算。本机编译和云编译**各算各的**——
+同一天里本机编了 1 次、云端编了 1 次，那就是 +2。
 
 | 触发点 | 怎么记 |
 |---|---|
-| 本机 `cmake --build`（含增量、什么都没变也算） | CMake 的 `build_count` 目标自动 +1，不用手动调 |
-| 本机 `ctest` | `build-local.sh` 记一次 `test` |
-| 云编译（Actions 每次 run） | workflow 自动记；分支构建号 = `build + 1`，回写仓库 |
+| 本机 `cmake --build`（含增量、什么都没变也算） | CMake 的 `build_count` 目标自动追加一行 `local` |
+| 本机 `ctest` | `build-local.sh` 追加一行 `test` |
+| 云编译（Actions 每次 run） | workflow 追加一行 `ci`；分支构建号 = 追加后那行的号 |
 | tag 构建 | 号直接取 tag 名里的 `.buildN`，只编译不回写（tag 是快照） |
 
-`build-count.json` 里只有一个数 `build`，它**既是构建号、也是编译次数**，没有第二套编号：
+### 为什么是「流水账」而不是一个数字
+
+早先是 `build-count.json` 里一个 `build`，本机和 CI 各自读出来 +1 再写回。
+两边同时推进时 git 合并只能二选一，**两次编译只剩一次，号被吃掉**，还每次 push 都冲突。
+
+现在拆成两个文件：
+
+| 文件 | 作用 | 合并行为 |
+|---|---|---|
+| `build-count.json` | `base`（1~110 的汇总数，之后不再变）+ 口径说明 + 冻结的旧明细 | 不再被写，所以不冲突 |
+| `build-events.jsonl` | 一次编译一行，只追加、不改写 | `.gitattributes` 里 `merge=union`，两边的行都保留 |
+
+`build = base + build-events.jsonl 的行数`。所以本机 1 行 + 云端 1 行 = 号 +2，
+既不会互相覆盖，也不会再产生冲突块。
 
 | 字段 | 含义 |
 |---|---|
-| `build` | 累计编译次数；`Info.plist` 里 `CFBundleVersion = $(CURRENT_PROJECT_VERSION)`、`CFBundleShortVersionString = $(MARKETING_VERSION)`，CI 编译时注入，本地构建用 pbxproj 里的默认值 |
-| `since` | 计数器开始如实记录的时间点 |
-| `history` | 最近 40 条明细；其中 `n: "13~99"` 是占位——旧版本没有计数机制，那段没逐次留档 |
+| `base` | 开始按事件留档之前的次数汇总；`Info.plist` 里 `CFBundleVersion = $(CURRENT_PROJECT_VERSION)`、`CFBundleShortVersionString = $(MARKETING_VERSION)`，CI 编译时注入 |
+| `legacy_history` | 旧格式的明细，冻结保留，不再追加 |
 
 ```bash
-python scripts/bump-build.py --show                       # 看当前构建号
-python scripts/bump-build.py --source local --note "..."  # 手动补记（一般用不到，CMake 已自动记）
+python scripts/bump-build.py --show          # 看当前号 + 最近几条
+python scripts/bump-build.py --next          # 只算下一次的号（CI 取号用）
+python scripts/bump-build.py --source local --note "..."   # 一般用不到，CMake 已自动记
 ```
 
-云编译由 workflow 的 `Record build count` 步骤自动记，master 分支上会回写仓库
-（提交信息带 `[skip ci]`，不会再触发一轮）；tag 构建是 detached HEAD，只写进 run summary 不回写。
+云编译由 workflow 的 `Record build count` 步骤自动追加并回写 master；tag 构建是 detached HEAD，
+只写进 run summary 不回写。
 
 > **坑**：GitHub 对 `[skip ci]` 是**全文匹配**，不只看标题行。提交正文里只要出现这个字样
 > （哪怕是在解释它），整次 push 的 workflow 都会被跳过。写提交信息时别在正文里提这个词。
