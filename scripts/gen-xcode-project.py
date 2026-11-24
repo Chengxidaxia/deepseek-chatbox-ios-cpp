@@ -92,6 +92,11 @@ def pb_build_files(paths, phase_id):
     return '\n'.join(lines)
 
 
+def rel_to_srcroot(p: str) -> str:
+    """xcodeproj 在 ios/ 下，SRCROOT=ios/。仓库根的文件需加 ../ 前缀。"""
+    p = p.replace('\\', '/')
+    return p[4:] if p.startswith('ios/') else '../' + p
+
 def generate():
     all_sources = OBJC_SOURCES + CPP_SOURCES
     src_build = pb_build_files(all_sources, MAIN_PHASE)
@@ -109,7 +114,7 @@ def generate():
     for p in all_refs:
         name = pathlib.Path(p).name
         refs.append(f'\t\t{file_ref(p)} /* {name} */ = {{isa = PBXFileReference; lastKnownFileType = '
-                    + file_type(p) + f'; path = {p}; sourceTree = SOURCE_ROOT; }};')
+                    + file_type(p) + f'; path = {rel_to_srcroot(p)}; sourceTree = SOURCE_ROOT; }};')
     refs.append(f'\t\t{PRODUCT} /* ChatboxIOS.app */ = {{isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ChatboxIOS.app; sourceTree = BUILT_PRODUCTS_DIR; }};')
 
     out = f'''// !$*UTF8*$!

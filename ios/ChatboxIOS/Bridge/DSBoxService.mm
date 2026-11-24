@@ -266,7 +266,7 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
   unlockedKey_ = StdStr(key);  // 设置后立即处于解锁态
   Settings st = store_->settings();
   st.hasKey = true;
-  st.keyPreview = StdStr(util::maskKey(StdStr(key)));
+  st.keyPreview = util::maskKey(StdStr(key));  // 返回 std::string，直接赋给 Settings
   store_->saveSettings(st.toJson());
   return YES;
 }
@@ -326,12 +326,13 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
 - (NSDictionary *)callTool:(NSString *)name arguments:(NSDictionary *)args {
   ToolContext ctx;
   ctx.apiKey = unlockedKey_;
-  ctx.conversations = [this]() { return store_ ? store_->allConversations() : std::vector<Conversation>{}; };
-  ctx.getBalance = [this](const std::string &key, std::string *err) {
-    return api_ ? api_->getBalance(key, err) : Balance{};
+  // ObjC 方法里没有 C++ 的 this；lambda 捕获 self，访问 ivar 用 self->
+  ctx.conversations = [self]() { return self->store_ ? self->store_->allConversations() : std::vector<Conversation>{}; };
+  ctx.getBalance = [self](const std::string &key, std::string *err) {
+    return self->api_ ? self->api_->getBalance(key, err) : Balance{};
   };
-  ctx.listModels = [this](const std::string &key, std::string *err) {
-    return api_ ? api_->listModels(key, err) : std::vector<ModelInfo>{};
+  ctx.listModels = [self](const std::string &key, std::string *err) {
+    return self->api_ ? self->api_->listModels(key, err) : std::vector<ModelInfo>{};
   };
   ToolResult r = ToolEngine::instance().call(StdStr(name), ToJson(args), ctx);
   return ToDict(r.toJson());
@@ -435,14 +436,15 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
   json payloadJ = ApiClient::buildPayload(c->messages, st, toolDefs);
 
   std::string apiKey = unlockedKey_;  // 复制到请求线程，避免竞态
+  __weak DSBoxService *ws = self;      // block/lambda 里避免强引用循环
   StreamOptions opts;
   opts.apiKey = apiKey;
   opts.baseUrl = st.baseUrl;
-  opts.shouldStop = [this]() { return stop_.load(); };
-  opts.onEvent = [weakSelf = self, delegate](const StreamEvent &e) {
+  opts.shouldStop = [self]() { return self->stop_.load(); };
+  opts.onEvent = [ws, delegate](const StreamEvent &e) {
     // libcurl 在后台线程回调，统一切主线程
     dispatch_async(dispatch_get_main_queue(), ^{
-      id<DSBoxChatDelegate> d = delegate ?: [weakSelf streamDelegateForCallback];
+      id<DSBoxChatDelegate> d = delegate ?: [ws streamDelegateForCallback];
       if (!d) return;
       NSDictionary *data = e.data.is_object() ? ToDict(e.data) : nil;
       NSString *text = e.text.empty() ? nil : NSStr(e.text);
@@ -454,6 +456,8 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
         case StreamEvent::Title:        [d dsboxDidReceiveEvent:DSBoxStreamEventTitle text:text data:data]; break;
         case StreamEvent::Refusal:      [d dsboxDidReceiveEvent:DSBoxStreamEventRefusal text:text data:data]; break;
         case StreamEvent::ServerToolCalls:[d dsboxDidReceiveEvent:DSBoxStreamEventServerTool text:text data:data]; break;
+        case StreamEvent::ToolEvent:    [d dsboxDidReceiveEvent:DSBoxStreamEventToolCall text:text data:data]; break;
+        case StreamEvent::Annotations:  break;  // UI 暂不展示
         case StreamEvent::Finish:       [d dsboxDidReceiveEvent:DSBoxStreamEventFinish text:text data:data]; break;
         case StreamEvent::Error:        [d dsboxDidReceiveEvent:DSBoxStreamEventError text:text data:data]; break;
         case StreamEvent::Done:
@@ -467,7 +471,7 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
   // 在后台串行队列跑 libcurl，避免阻塞 UI
   dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
     std::string err;
-    BOOL ok = api_->streamChat(payloadJ, opts, &err);
+    BOOL ok = self->api_ ? self->api_->streamChat(payloadJ, opts, &err) : NO;
     if (!ok) {
       dispatch_async(dispatch_get_main_queue(), ^{
         id<DSBoxChatDelegate> d = delegate;
