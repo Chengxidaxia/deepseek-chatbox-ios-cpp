@@ -164,7 +164,7 @@
     tf.placeholder = @"PIN（至少 4 位）"; tf.secureTextEntry = YES;
   }];
   [a addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
-  __weak typeof(self) weakSelf = self;
+  __weak __typeof(self) weakSelf = self;
   [a addAction:[UIAlertAction actionWithTitle:@"保存" style:UIAlertActionStyleDefault handler:^(UIAlertAction *act) {
     NSError *err = nil;
     BOOL ok = [[DSBoxService shared] setApiKey:a.textFields[0].text pin:a.textFields[1].text error:&err];
@@ -178,7 +178,7 @@
   UIAlertController *a = [UIAlertController alertControllerWithTitle:@"清除 Key"
       message:@"确定删除本机保存的 API Key？" preferredStyle:UIAlertControllerStyleAlert];
   [a addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
-  __weak typeof(self) weakSelf = self;
+  __weak __typeof(self) weakSelf = self;
   [a addAction:[UIAlertAction actionWithTitle:@"清除" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *act) {
     [[DSBoxService shared] clearStoredKey];
     [weakSelf reload];
@@ -228,7 +228,7 @@
     tf.text = [current description] ?: @"0"; tf.keyboardType = UIKeyboardTypeDecimalPad;
   }];
   [a addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
-  __weak typeof(self) weakSelf = self;
+  __weak __typeof(self) weakSelf = self;
   [a addAction:[UIAlertAction actionWithTitle:@"保存" style:UIAlertActionStyleDefault handler:^(UIAlertAction *act) {
     double v = [a.textFields.firstObject.text doubleValue];
     [[DSBoxService shared] saveSettingsPatch:@{key: @(v)}];
@@ -242,7 +242,7 @@
       preferredStyle:UIAlertControllerStyleAlert];
   [a addTextFieldWithConfigurationHandler:^(UITextField *tf) { tf.text = self.settings[@"systemPrompt"] ?: @""; }];
   [a addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
-  __weak typeof(self) weakSelf = self;
+  __weak __typeof(self) weakSelf = self;
   [a addAction:[UIAlertAction actionWithTitle:@"保存" style:UIAlertActionStyleDefault handler:^(UIAlertAction *act) {
     [[DSBoxService shared] saveSettingsPatch:@{@"systemPrompt": a.textFields.firstObject.text ?: @""}];
     [weakSelf reload];
@@ -260,7 +260,8 @@
 - (void)exportData {
   NSDictionary *snap = [[DSBoxService shared] exportSnapshot];
   NSData *data = [NSJSONSerialization dataWithJSONObject:snap options:NSJSONWritingPrettyPrinted error:nil];
-  NSURL *url = [[DSBoxService shared].documentsPath stringByAppendingPathComponent:@"chatbox-snapshot.json"].fileURL;
+  NSString *path = [[DSBoxService shared].documentsPath stringByAppendingPathComponent:@"chatbox-snapshot.json"];
+  NSURL *url = [NSURL fileURLWithPath:path];
   [data writeToURL:url atomically:YES];
   UIActivityViewController *vc = [[UIActivityViewController alloc] initWithActivityItems:@[url] applicationActivities:nil];
   vc.popoverPresentationController.sourceView = self.tableView;

@@ -132,7 +132,7 @@ trailingSwipeActionsConfigurationForRowAtIndexPath:(NSIndexPath *)indexPath {
     [self reload];
     completion(YES);
   }];
-  __weak typeof(self) weakSelf = self;
+  __weak __typeof(self) weakSelf = self;
   UIContextualAction *pin = [UIContextualAction contextualActionWithStyle:UIContextualActionStyleNormal
       title:[c[@"pinned"] boolValue] ? @"取消置顶" : @"置顶" handler:^(UIContextualAction *a, UIView *s, void (^done)(BOOL)) {
     NSError *e = nil;

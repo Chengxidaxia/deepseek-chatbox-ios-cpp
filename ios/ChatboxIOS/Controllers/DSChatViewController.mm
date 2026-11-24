@@ -132,7 +132,7 @@
     tf.placeholder = @"PIN"; tf.secureTextEntry = YES;
   }];
   [a addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
-  __weak typeof(self) weakSelf = self;
+  __weak __typeof(self) weakSelf = self;
   [a addAction:[UIAlertAction actionWithTitle:@"解锁并发送" style:UIAlertActionStyleDefault handler:^(UIAlertAction *act) {
     NSError *err = nil;
     BOOL ok = [[DSBoxService shared] unlockWithPin:a.textFields.firstObject.text error:&err];
