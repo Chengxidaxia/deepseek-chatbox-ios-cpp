@@ -6,6 +6,11 @@ on:
     tags: ['v*']
   workflow_dispatch:
 
+# 挂 ipa 到 Release 与回写 build-count.json 都需要写权限；
+# 默认 GITHUB_TOKEN 是只读，之前 "gh release upload" 直接报 HTTP 403。
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: macos-latest      # 用 GitHub 当前可用的 macOS runner；arm64-ios 交叉编译
@@ -96,7 +101,31 @@ jobs:
           path: .build/ios/ipa/*.ipa
           if-no-files-found: error
 
-      # tag 推送时，把 ipa 挂到同名 Release（若 GitHub 已有该 tag 的 Release）
+      # 「编译一次算一次构建」：云编译也计数，成功失败都记。
+      # master 上回写仓库（提交信息带 [skip ci]，不会再触发一轮）；tag 构建是 detached HEAD，只展示不回写。
+      - name: Record build count
+        if: always()
+        env:
+          RESULT: ${{ job.status == 'success' && 'success' || 'failed' }}
+        run: |
+          set -uo pipefail
+          python3 scripts/bump-build.py --source ci --ref "$GITHUB_RUN_ID" \
+            --result "$RESULT" --note "云编译 $GITHUB_REF_NAME" | tee -a "$GITHUB_STEP_SUMMARY"
+          python3 scripts/bump-build.py --show | tee -a "$GITHUB_STEP_SUMMARY"
+
+          [ "$GITHUB_REF" = "refs/heads/master" ] || exit 0
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add build-count.json
+          git diff --cached --quiet && exit 0
+          N=$(python3 -c "import json;print(json.load(open('build-count.json'))['totalBuilds'])")
+          git commit -q -m "chore(build): 第 ${N} 次编译 [skip ci]"
+          for i in 1 2 3; do
+            git pull --rebase -q origin master && git push -q origin master && break || sleep 3
+          done
+
+      # tag 推送时，把 ipa 挂到同名 Release。Release 不存在就现建，
+      # 这样推 tag 一步到位，不用先在网页上手动创建（之前只 upload 会 403/找不到 Release）。
       - name: Attach ipa to Release (tags only)
         if: startsWith(github.ref, 'refs/tags/')
         env:
@@ -104,7 +133,8 @@ jobs:
         run: |
           set -euo pipefail
           TAG="${GITHUB_REF#refs/tags/}"
+          gh release view "$TAG" >/dev/null 2>&1 || \
+            gh release create "$TAG" --title "$TAG" --generate-notes
           for ipa in .build/ios/ipa/*.ipa; do
-            gh release upload "$TAG" "$ipa" --clobber || \
-              echo "::warning::Release $TAG 不存在或上传失败，ipa 仍保留在 artifact"
+            gh release upload "$TAG" "$ipa" --clobber
           done

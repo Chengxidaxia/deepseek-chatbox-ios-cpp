@@ -43,10 +43,37 @@
 
 ```bash
 export PATH="/k/Programs/msys64/mingw64/bin:$PATH"
+bash scripts/build-local.sh          # 配置 + 编译 + ctest，并记一次构建
+bash scripts/build-local.sh --no-test # 只编译
+```
+
+手动等价流程：
+
+```bash
 cmake -S . -B .build/native -G Ninja -DCMAKE_BUILD_TYPE=Debug
 cmake --build .build/native
-./.build/native/test_core.exe
+ctest --test-dir .build/native --output-on-failure
 ```
+
+## 构建计数
+
+口径：**只要发起过一次编译，就算一次构建** —— 本机 `cmake`/`g++` 编译、`ctest`、云编译
+（GitHub Actions 每次 run）都 `+1`，成功失败都算。
+
+| 字段 | 含义 |
+|---|---|
+| `build-count.json` 的 `build` | **发版构建号**，写进 tag（`vX.Y.Z.buildN`）与 `Info.plist` 的 `CFBundleVersion`，只在发版时 +1 |
+| `build-count.json` 的 `totalBuilds` | **累计编译次数**，每次编译 +1，这才是「构建了多少次」 |
+| `history` | 最近 40 次编译的明细（时间 / 来源 local·test·ci / 成败 / run id / 说明） |
+
+```bash
+python scripts/bump-build.py --show                      # 看当前计数
+python scripts/bump-build.py --source local --note "..."  # 记一次本机编译
+python scripts/bump-build.py --release --note "v1.12.6"   # 发版：build 也 +1
+```
+
+云编译由 workflow 的 `Record build count` 步骤自动记，master 分支上会回写仓库
+（提交信息带 `[skip ci]`，不会再触发一轮）；tag 构建是 detached HEAD，只写进 run summary 不回写。
 
 ## 目录
 

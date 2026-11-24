@@ -1,0 +1,92 @@
+{
+  "build": 88,
+  "totalBuilds": 10,
+  "since": "2026-11-24 15:40 +0800",
+  "meaning": {
+    "build": "发版构建号：写进 tag（vX.Y.Z.buildN）与 Info.plist 的 CFBundleVersion，只在发版时 +1",
+    "totalBuilds": "累计编译次数：本机 cmake/g++ 编译、ctest、云编译（GitHub Actions 每次 run）都 +1，无论成败",
+    "since": "计数器开始如实记录的时间点；此前的构建没有逐次留档"
+  },
+  "history": [
+    {
+      "n": 1,
+      "at": "2026-11-24 15:40 +0800",
+      "source": "local",
+      "result": "success",
+      "ref": "",
+      "note": "修 RE_WORD 空白分支后 cmake 增量编译（dsbox_tools + 三个 test 可执行）"
+    },
+    {
+      "n": 2,
+      "at": "2026-11-24 15:41 +0800",
+      "source": "local",
+      "result": "success",
+      "ref": "",
+      "note": "重编对拍程序 .build/webparity/tokcheck.exe"
+    },
+    {
+      "n": 3,
+      "at": "2026-11-24 15:52 +0800",
+      "source": "local",
+      "result": "success",
+      "ref": "",
+      "note": "g++ -Wall -Wextra 单独编译 tokenizer.cpp 查告警（0 warning）"
+    },
+    {
+      "n": 4,
+      "at": "2026-11-24 15:53 +0800",
+      "source": "local",
+      "result": "success",
+      "ref": "",
+      "note": "加 33 项分词器断言后 cmake 增量编译"
+    },
+    {
+      "n": 5,
+      "at": "2026-11-24 15:53 +0800",
+      "source": "test",
+      "result": "success",
+      "ref": "",
+      "note": "ctest 三套件 270 项断言全绿"
+    },
+    {
+      "n": 6,
+      "at": "2026-11-24 15:54 +0800",
+      "source": "ci",
+      "result": "success",
+      "ref": "45351591405",
+      "note": "master push：分词器接线的 iOS 编译验证"
+    },
+    {
+      "n": 7,
+      "at": "2026-11-24 15:58 +0800",
+      "source": "ci",
+      "result": "success",
+      "ref": "45352184153",
+      "note": "master push：版本号 1.12.5/88"
+    },
+    {
+      "n": 8,
+      "at": "2026-11-24 15:58 +0800",
+      "source": "ci",
+      "result": "success",
+      "ref": "45352191129",
+      "note": "tag v1.12.5.build88：ipa 产出成功，但上传 Release 因缺 permissions 报 403"
+    },
+    {
+      "n": 9,
+      "at": "2026-11-24 16:07 +0800",
+      "source": "local",
+      "result": "success",
+      "ref": "",
+      "note": "cmake --build 全量"
+    },
+    {
+      "n": 10,
+      "at": "2026-11-24 16:07 +0800",
+      "source": "test",
+      "result": "success",
+      "ref": "",
+      "note": "ctest 三套件"
+    }
+  ]
+}
