@@ -105,14 +105,15 @@
 
   [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillChange:)
       name:UIKeyboardWillChangeFrameNotification object:nil];
-  [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(themeChanged)
-      name:UITraitCollectionDidChangeNotification object:nil];
   [self scrollToBottomAnimated:NO];
 }
 
 - (void)dealloc { [[NSNotificationCenter defaultCenter] removeObserver:self]; }
 
-- (void)themeChanged {
+- (void)traitCollectionDidChange:(UITraitCollection *)previousTraitCollection {
+  [super traitCollectionDidChange:previousTraitCollection];
+  if (!previousTraitCollection) return;
+  if (previousTraitCollection.userInterfaceStyle == self.traitCollection.userInterfaceStyle) return;
   // 主题切换后重刷，让自绘描边/毛玻璃跟着变
   [self applyChipStyles];
   [self.tableView reloadData];
