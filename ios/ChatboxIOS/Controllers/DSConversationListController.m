@@ -105,7 +105,11 @@
   start.layer.cornerRadius = 10;
   start.layer.borderWidth = 1;
   start.layer.borderColor = [DSTheme borderL2].CGColor;
+  // 旧式按钮（configuration 为 nil），inset 仍生效；换成 UIButtonConfiguration 只为消警告不值当
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   start.contentEdgeInsets = UIEdgeInsetsMake(9, 18, 9, 18);
+#pragma clang diagnostic pop
   [start addTarget:self action:@selector(newChat) forControlEvents:UIControlEventTouchUpInside];
 
   UIStackView *stack = [[UIStackView alloc] initWithArrangedSubviews:@[_emptyTitle, _emptyDesc, start]];

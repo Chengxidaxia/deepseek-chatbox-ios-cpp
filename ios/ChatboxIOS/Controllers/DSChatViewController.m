@@ -377,9 +377,15 @@
   b.titleLabel.lineBreakMode = NSLineBreakByTruncatingTail;
   [b setTitle:title forState:UIControlStateNormal];
   [b setImage:[DSIcon image:icon size:13] forState:UIControlStateNormal];
+  // 这三个 inset 在 iOS 15+ 被标了 deprecated，但只在使用 UIButtonConfiguration 时才被忽略；
+  // 这里用的是 buttonWithType: 的旧式按钮（configuration 为 nil），inset 仍然生效，
+  // 换成 configuration 反而要自己维护 attributedTitle 的字体/配色，不划算。
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   b.imageEdgeInsets = UIEdgeInsetsMake(0, -3, 0, 3);
   b.titleEdgeInsets = UIEdgeInsetsMake(0, 3, 0, -3);
   b.contentEdgeInsets = UIEdgeInsetsMake(0, 8, 0, 8);
+#pragma clang diagnostic pop
   b.layer.cornerRadius = 13;
   b.layer.cornerCurve = kCACornerCurveContinuous;
   [b addTarget:self action:action forControlEvents:UIControlEventTouchUpInside];
