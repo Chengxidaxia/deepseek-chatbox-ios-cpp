@@ -55,7 +55,58 @@ cmake --build .build/native
 ctest --test-dir .build/native --output-on-failure
 ```
 
-## 构建计数
+## 版本号与构建计数
+
+### 版本号是两个字段，不是一个
+
+| 字段 | 当前值 | 谁提供 | 语义 |
+|---|---|---|---|
+| `CFBundleShortVersionString` | `1.12.5` | `MARKETING_VERSION`（pbxproj，Release/Debug 各一处） | 营销版本，给人看的，功能层面变了才动 |
+| `CFBundleVersion` | `122` | `CURRENT_PROJECT_VERSION`，CI 每次编译注入 | 构建号 = **累计编译次数**，每次编译必变 |
+
+两个都走构建设置引用，`Info.plist` 里写的是变量、不是字面量：
+
+```
+CFBundleShortVersionString = $(MARKETING_VERSION)
+CFBundleVersion            = $(CURRENT_PROJECT_VERSION)
+```
+
+> **坑**：这两行要是写成字面量，`xcodebuild CURRENT_PROJECT_VERSION=101` 完全不生效，
+> 包内版本号永远是 plist 里那个死数字。当时 tag 是 `build101`、包内还是 `100`，
+> 查了很久才发现是 plist 没引用构建设置。
+
+### tag 命名
+
+`v<营销版本>.build<构建号>`，例如 `v1.12.5.build101`。
+
+tag 构建的号**直接取 tag 名里的 `.buildN`**，不再累加 —— tag 是快照，
+不能因为「重新跑一次 CI」就让号变掉。
+
+### 两个仓库共用一个号
+
+Web 版（`deepseek-chatbox`）和本仓库共用同一套编译计数，不是各编各的：
+Web 版最后一个是 `v1.12.4.build87`，本仓库从 **88** 接着往下数。
+营销版本之所以跳到 `1.12.5`，是因为 iOS 是完全独立的实现，不是 Web 版的补丁。
+
+### 三者必须一致
+
+包内 `CFBundleVersion`、`base + build-events.jsonl 的行数`、tag 里的 `.buildN`，
+**永远是同一个数**。校验方法：
+
+```bash
+python scripts/bump-build.py --show
+# build=122  base=110  events=12  since=2026-11-24 15:40 +0800
+
+# 包内版本号（不依赖 plutil / unzip，Windows 上也能跑）
+python -c "import zipfile,plistlib;z=zipfile.ZipFile('dist/ChatboxIOS-adhoc.ipa');\
+n=[x for x in z.namelist() if x.endswith('.app/Info.plist')][0];\
+i=plistlib.loads(z.read(n));print(i['CFBundleShortVersionString'],i['CFBundleVersion'])"
+# 1.12.5 122
+```
+
+对不上就是有一步没写回去：要么 CI 的 `Record build count` 没提交，要么 plist 又写回字面量了。
+
+### 构建号怎么记
 
 口径：**只要发起过一次编译，就算一次构建**，成功失败都算。本机编译和云编译**各算各的**——
 同一天里本机编了 1 次、云端编了 1 次，那就是 +2。
@@ -84,7 +135,8 @@ ctest --test-dir .build/native --output-on-failure
 
 | 字段 | 含义 |
 |---|---|
-| `base` | 开始按事件留档之前的次数汇总；`Info.plist` 里 `CFBundleVersion = $(CURRENT_PROJECT_VERSION)`、`CFBundleShortVersionString = $(MARKETING_VERSION)`，CI 编译时注入 |
+| `base` | 开始按事件留档之前的次数汇总（1~110 那段只有汇总，没有逐条明细），冻结不再变 |
+| `since` | 开始按事件逐条留档的时间点 |
 | `legacy_history` | 旧格式的明细，冻结保留，不再追加 |
 
 ```bash
@@ -131,7 +183,9 @@ python scripts/bump-build.py --source local --note "..."   # 一般用不到，C
 
 ## iOS 界面与官方的对齐
 
-前端取值与结构来自 `DeepSeek-2.7.1.ipa` 的实测提取，详见 `docs/官方iOS前端参考.md`。要点：
+前端取值与结构来自官方 ipa 的实测提取与反编译，详见
+[`docs/官方iOS前端参考.md`](docs/官方iOS前端参考.md) 与
+[`docs/官方反编译/官方UI结构.md`](docs/官方反编译/官方UI结构.md)。要点：
 
 - **一条回答 = 按顺序排列的 Fragment**，不是把所有工具调用合并成一组：
   `思考 → 该轮工具卡片 → 下一轮思考 → … → 正文 → 引用 → 用量`。
@@ -141,7 +195,10 @@ python scripts/bump-build.py --source local --note "..."   # 一般用不到，C
   用满后关闭工具通道并提示模型收尾），与 Web 版行为一致。
 - **分支切换**：同一提问的多次回答各自留存，底部显示「第 n 条消息（共 m 条）」，
   「再试一次」生成新分支而不是覆盖。
-- **图标为自绘**：官方 `Assets.car` 在 Windows 上解不开，按官方 SVG 的几何特征用 UIBezierPath 重绘
-  （20×20 视口 / 1.6pt 描边 / 圆头端点），见 `Supporting/DSIcon.m`。
+- **图标是官方原矢量**：`Assets.car` 已在 Windows 上用自写的 BOMStore + LZVN 解析器解开，
+  182 个 rendition 全是 SVG，58 个常用图标原样落库在 `Resources/OfficialIcons/`，
+  由 `Supporting/DSSVGIcon`（自写 SVG 解析器，不引 SVGKit）渲染，见 `Supporting/DSIcon.m`。
+- **按钮统一走 `DSButton`**：对应官方同名组件的配置式设计（ImageConfig / TitleConfig /
+  BorderConfig / IconTitleConfig），选中态与配色由配置驱动，不再各处手写。
 - **Lottie 动画未引入运行时**：官方那 8 个 16×16 动画（闪电摆动、专家脉冲、朗读波形等）
   用 Core Animation 等价实现，视觉一致但不增加依赖，见 `DSVoiceOverlay` 的波形与工具卡片的脉冲点。
