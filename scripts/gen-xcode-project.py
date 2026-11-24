@@ -20,9 +20,11 @@ OBJC_SOURCES = [
     'ios/ChatboxIOS/Supporting/main.m',
     'ios/ChatboxIOS/Supporting/AppDelegate.mm',
     'ios/ChatboxIOS/Bridge/DSBoxService.mm',
+    'ios/ChatboxIOS/Controllers/DSRootViewController.m',
     'ios/ChatboxIOS/Controllers/DSConversationListController.m',
     'ios/ChatboxIOS/Controllers/DSChatViewController.m',
     'ios/ChatboxIOS/Controllers/DSSettingsViewController.mm',
+    'ios/ChatboxIOS/Views/DSTopBarView.m',
     'ios/ChatboxIOS/Views/DSMessageCell.m',
     'ios/ChatboxIOS/Views/DSTurn.m',
     'ios/ChatboxIOS/Views/DSFragmentView.m',
@@ -32,6 +34,8 @@ OBJC_SOURCES = [
     'ios/ChatboxIOS/Supporting/DSTheme.m',
     'ios/ChatboxIOS/Supporting/DSStrings.m',
     'ios/ChatboxIOS/Supporting/DSIcon.m',
+    'ios/ChatboxIOS/Supporting/DSIconAssets.m',
+    'ios/ChatboxIOS/Supporting/DSSVGIcon.m',
 ]
 CPP_SOURCES = [
     'core/src/store.cpp',
@@ -51,9 +55,11 @@ RESOURCES = [
 HEADERS = [
     'ios/ChatboxIOS/Bridge/DSBoxService.h',
     'ios/ChatboxIOS/Supporting/AppDelegate.h',
+    'ios/ChatboxIOS/Controllers/DSRootViewController.h',
     'ios/ChatboxIOS/Controllers/DSConversationListController.h',
     'ios/ChatboxIOS/Controllers/DSChatViewController.h',
     'ios/ChatboxIOS/Controllers/DSSettingsViewController.h',
+    'ios/ChatboxIOS/Views/DSTopBarView.h',
     'ios/ChatboxIOS/Views/DSMessageCell.h',
     'ios/ChatboxIOS/Views/DSTurn.h',
     'ios/ChatboxIOS/Views/DSFragmentView.h',
@@ -63,6 +69,8 @@ HEADERS = [
     'ios/ChatboxIOS/Supporting/DSTheme.h',
     'ios/ChatboxIOS/Supporting/DSStrings.h',
     'ios/ChatboxIOS/Supporting/DSIcon.h',
+    'ios/ChatboxIOS/Supporting/DSIconAssets.h',
+    'ios/ChatboxIOS/Supporting/DSSVGIcon.h',
 ]
 
 PROJECT_ID = oid('PROJECT')

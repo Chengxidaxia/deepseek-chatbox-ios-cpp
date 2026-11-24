@@ -69,6 +69,9 @@
   [_dim addGestureRecognizer:[[UITapGestureRecognizer alloc] initWithTarget:self
                                                                    action:@selector(closeSidebar)]];
   [self.view addSubview:_dim];
+  // 遮罩是后加的，会压在抽屉上面 —— 不抬一下的话，抽屉里的会话行点不到，
+  // 点在哪儿都被遮罩接走当成「关闭抽屉」。
+  [self.view bringSubviewToFront:_drawer];
 
   CGFloat drawerWidth = MIN(320.0, UIScreen.mainScreen.bounds.size.width * 0.84);
   _drawerLeading = [_drawer.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor
@@ -219,10 +222,10 @@
   }
   CGFloat width = [self drawerWidth];
   if (!_sidebarOpen) {
-    // 只有从屏幕左缘起手才跟手，避免和消息区的横向手势打架
-    if (t.x <= 0) return;
+    // 只有从屏幕左缘起手才跟手（由 gestureRecognizerShouldBegin 拦），这里只管跟手位移。
+    // 左滑把 t.x 拉成负数时夹到 -width，也就是「关到底」，不要冲出去。
     _dim.hidden = NO;
-    _drawerLeading.constant = MIN(0, -width + t.x);
+    _drawerLeading.constant = MAX(-width, MIN(0, -width + t.x));
     _dim.alpha = MAX(0, MIN(1, t.x / width));
   } else {
     _drawerLeading.constant = MAX(-width, MIN(0, t.x));

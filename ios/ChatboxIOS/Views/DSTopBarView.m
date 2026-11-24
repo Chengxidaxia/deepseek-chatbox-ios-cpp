@@ -10,7 +10,9 @@
 @interface DSTopBarView ()
 @property (nonatomic, strong) UIButton *menuButton;
 @property (nonatomic, strong, readwrite) UIButton *modelButton;
-@property (nonatomic, strong) UIButton *newChatButton;
+// 名字不能以 new 开头：ARC 的 new-family 命名约定会要求返回「拥有」的对象，
+// 属性声明直接编译报错（property follows Cocoa naming convention for returning 'owned' objects）。
+@property (nonatomic, strong) UIButton *composeButton;
 @end
 
 @implementation DSTopBarView
@@ -49,16 +51,16 @@
   [_modelButton addTarget:self action:@selector(modelTapped) forControlEvents:UIControlEventTouchUpInside];
 
   // 右：＋
-  _newChatButton = [UIButton buttonWithType:UIButtonTypeSystem];
-  _newChatButton.translatesAutoresizingMaskIntoConstraints = NO;
-  [_newChatButton setImage:[DSIcon image:DSIconNewChat size:22] forState:UIControlStateNormal];
-  _newChatButton.tintColor = [DSTheme labelPrimary];
-  _newChatButton.accessibilityLabel = @"开启新对话";
-  [_newChatButton addTarget:self action:@selector(newChatTapped) forControlEvents:UIControlEventTouchUpInside];
+  _composeButton = [UIButton buttonWithType:UIButtonTypeSystem];
+  _composeButton.translatesAutoresizingMaskIntoConstraints = NO;
+  [_composeButton setImage:[DSIcon image:DSIconNewChat size:22] forState:UIControlStateNormal];
+  _composeButton.tintColor = [DSTheme labelPrimary];
+  _composeButton.accessibilityLabel = @"开启新对话";
+  [_composeButton addTarget:self action:@selector(newChatTapped) forControlEvents:UIControlEventTouchUpInside];
 
   [self addSubview:_menuButton];
   [self addSubview:_modelButton];
-  [self addSubview:_newChatButton];
+  [self addSubview:_composeButton];
 
   [NSLayoutConstraint activateConstraints:@[
     [_menuButton.leadingAnchor constraintEqualToAnchor:self.leadingAnchor constant:6],
@@ -66,17 +68,17 @@
     [_menuButton.widthAnchor constraintEqualToConstant:44],
     [_menuButton.heightAnchor constraintEqualToConstant:44],
 
-    [_newChatButton.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-6],
-    [_newChatButton.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
-    [_newChatButton.widthAnchor constraintEqualToConstant:44],
-    [_newChatButton.heightAnchor constraintEqualToConstant:44],
+    [_composeButton.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-6],
+    [_composeButton.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
+    [_composeButton.widthAnchor constraintEqualToConstant:44],
+    [_composeButton.heightAnchor constraintEqualToConstant:44],
 
     [_modelButton.centerXAnchor constraintEqualToAnchor:self.centerXAnchor],
     [_modelButton.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
     [_modelButton.heightAnchor constraintEqualToConstant:36],
     // 中间标题不许压到两侧按钮
     [_modelButton.leadingAnchor constraintGreaterThanOrEqualToAnchor:_menuButton.trailingAnchor constant:4],
-    [_modelButton.trailingAnchor constraintLessThanOrEqualToAnchor:_newChatButton.leadingAnchor constant:-4],
+    [_modelButton.trailingAnchor constraintLessThanOrEqualToAnchor:_composeButton.leadingAnchor constant:-4],
   ]];
   return self;
 }

@@ -327,6 +327,49 @@ opcode：
 > 仍然没有的：**布局数值**（间距、字号、圆角半径）。这些不在 `Assets.car` 里，
 > 在 Swift 代码的常量里；要继续抠得反编译 `DeepSeek Chat` 主二进制。
 
+## 6.4 整个应用的骨架重排（2026-11-24 第四次对齐）
+
+前几轮只对齐了图标、配色、文案这些「局部」，骨架还是我们自己的：导航栈 + 系统导航栏。
+官方是 **RootViewController + Sidebar 抽屉 + 自绘顶栏**。这一轮把骨架换掉。
+
+### 官方 → 我们 的对照
+
+| 官方类 | 我们的实现 | 说明 |
+|---|---|---|
+| `RootViewController` | `DSRootViewController` | 聊天页常驻，抽屉盖在上面 |
+| `SidebarViewController` | 同上（容器内） | 左侧滑出、遮罩可点关闭、左缘右滑打开 |
+| `SessionListViewController` | `DSConversationListController`（`drawerMode`） | 自带「开启新对话 / 搜索 / 列表 / 设置」四段 |
+| `SessionListSearchBarView` | 自绘 `UITextField` + 放大镜 | 抽屉里没有导航栏，`UISearchController` 挂不上去 |
+| `chat/top_bar/*` | `DSTopBarView` | **自绘 44pt 顶栏**，不再用 `UINavigationBar` |
+| `SessionViewController` | `DSChatViewController` | 改成根容器的子控制器，不再叠导航栈 |
+| `ProfileViewController` | `DSSettingsViewController` | 从抽屉模态弹出（官方也是从侧栏进） |
+
+### 结构变化带来的行为变化
+
+| 之前 | 现在 |
+|---|---|
+| ☰ 回到/推入会话列表页 | ☰ 滑出抽屉 |
+| 点会话 = push 一个新聊天页 | 点会话 = 换掉根容器的子控制器（栈不增长） |
+| ＋ 新对话 = push 又一页 | ＋ 新对话 = 新建会话并换页 |
+| 顶栏 = `UINavigationBar` + `navigationItem` | 顶栏 = `DSTopBarView`（☰ / 模型名⌄ / ＋） |
+| 输入区毛玻璃 + 分割线 | 页面同色、无分割线 |
+
+### 顺带修掉的静默 bug
+
+「智能搜索点了没反应」的根因不在 UI，在桥接：
+
+```
+strcmp([n objCType], @encode(BOOL))   // arm64 上 BOOL 是 C++ bool → "B"
+                                      // 而 @(YES) 是 __NSCFBoolean → "c"
+```
+
+比不出来 → 当成数字发成 `1` → C++ 侧 `j.value<bool>()` 抛 `type_error.302`
+→ `Store::saveSettings` 整体失败、被 catch 掉 → **开关静默无效**。
+影响面不只是智能搜索：深度思考、设置页的所有开关都是同一条路径。
+
+修法：改用 `CFBooleanGetTypeID()` 判定；`Settings/UIState::fromJson` 对 0/1 容忍；
+补三条回归用例；开关改成即时上色 + 回读校验日志（存不进去会留日志）。
+
 ## 7. 构建状态
 
 | 项 | 值 |
