@@ -88,6 +88,7 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
 - (void)runAgentLoopWithHistory:(std::vector<Message>)history
                        settings:(Settings)st
                        toolDefs:(std::vector<json>)toolDefs
+                 continuePrefix:(std::string)continuePrefix
                        delegate:(id<DSBoxChatDelegate>)delegate
                          apiKey:(std::string)apiKey;
 - (void)emitToDelegate:(id<DSBoxChatDelegate>)delegate

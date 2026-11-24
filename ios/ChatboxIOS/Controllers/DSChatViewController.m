@@ -999,7 +999,8 @@
   NSString *content = [tail[@"content"] isKindOfClass:NSString.class] ? tail[@"content"] : @"";
   if (content.length == 0) return;
 
-  NSUInteger idx = [self.rawMessages indexOfObjectIdenticalTo:tail];
+  // rawMessages 泛型是 NSMutableDictionary，turn 里拿到的是 NSDictionary，用 id 抹平类型
+  NSUInteger idx = [self.rawMessages indexOfObjectIdenticalTo:(id)tail];
   if (idx == NSNotFound) return;
   // 只允许续写最后一条回答：中间轮次续写会和后面的消息打架
   if ((NSInteger)idx + 1 != (NSInteger)self.rawMessages.count) {
