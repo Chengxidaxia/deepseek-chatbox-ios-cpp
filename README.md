@@ -60,17 +60,20 @@ ctest --test-dir .build/native --output-on-failure
 口径：**只要发起过一次编译，就算一次构建** —— 本机 `cmake`/`g++` 编译、`ctest`、云编译
 （GitHub Actions 每次 run）都 `+1`，成功失败都算。
 
+`build-count.json` 里只有一个数 `build`，它**既是构建号、也是编译次数**，没有第二套编号：
+
 | 字段 | 含义 |
 |---|---|
-| `build-count.json` 的 `build` | **发版构建号**，写进 tag（`vX.Y.Z.buildN`）与 `Info.plist` 的 `CFBundleVersion`，只在发版时 +1 |
-| `build-count.json` 的 `totalBuilds` | **累计编译次数**，每次编译 +1，这才是「构建了多少次」 |
+| `build` | 累计编译次数；tag 的 `.buildN` 与 `Info.plist` 的 `CFBundleVersion` 都用它 |
+| `since` | 计数器开始如实记录的时间点（此前的编译没有逐次留档） |
 | `history` | 最近 40 次编译的明细（时间 / 来源 local·test·ci / 成败 / run id / 说明） |
 
 ```bash
-python scripts/bump-build.py --show                      # 看当前计数
-python scripts/bump-build.py --source local --note "..."  # 记一次本机编译
-python scripts/bump-build.py --release --note "v1.12.6"   # 发版：build 也 +1
+python scripts/bump-build.py --show                       # 看当前构建号
+python scripts/bump-build.py --source local --note "..."  # 记一次本机编译（build +1）
 ```
+
+发版时直接取当前号：`--show` 得到 N → 写进 `Info.plist` 的 `CFBundleVersion` → 打 tag `vX.Y.Z.buildN`。
 
 云编译由 workflow 的 `Record build count` 步骤自动记，master 分支上会回写仓库
 （提交信息带 `[skip ci]`，不会再触发一轮）；tag 构建是 detached HEAD，只写进 run summary 不回写。
