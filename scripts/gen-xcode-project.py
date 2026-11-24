@@ -368,10 +368,9 @@ def generate():
 \t\t{CONFIG_DEBUG_TARGET} /* Debug */ = {{
 \t\t\tisa = XCBuildConfiguration;
 \t\t\tbuildSettings = {{
-\t\t\t\tASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 \t\t\t\tCODE_SIGN_STYLE = Automatic;
 \t\t\t\tCURRENT_PROJECT_VERSION = 87;
-\t\t\t\tGENERATE_INFOPLIST_FILE = YES;
+\t\t\t\tGENERATE_INFOPLIST_FILE = NO;
 \t\t\t\tHEADER_SEARCH_PATHS = (
 \t\t\t\t\t"$(SRCROOT)/../core/include",
 \t\t\t\t\t"$(SRCROOT)/../tools/include",
@@ -413,10 +412,9 @@ def generate():
 \t\t{CONFIG_RELEASE_TARGET} /* Release */ = {{
 \t\t\tisa = XCBuildConfiguration;
 \t\t\tbuildSettings = {{
-\t\t\t\tASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 \t\t\t\tCODE_SIGN_STYLE = Automatic;
 \t\t\t\tCURRENT_PROJECT_VERSION = 87;
-\t\t\t\tGENERATE_INFOPLIST_FILE = YES;
+\t\t\t\tGENERATE_INFOPLIST_FILE = NO;
 \t\t\t\tHEADER_SEARCH_PATHS = (
 \t\t\t\t\t"$(SRCROOT)/../core/include",
 \t\t\t\t\t"$(SRCROOT)/../tools/include",

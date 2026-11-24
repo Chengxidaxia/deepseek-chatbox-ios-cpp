@@ -24,7 +24,7 @@ xcodebuild -project "$ROOT/ios/ChatboxIOS.xcodeproj" \
   -archivePath "$OUT/ChatboxIOS.xcarchive" \
   CODE_SIGN_IDENTITY="-" \
   CODE_SIGNING_REQUIRED=NO \
-  CODE_SIGNING_ALLOWED=YES \
+  CODE_SIGNING_ALLOWED=NO \
   archive 2>&1 | tee "$OUT/archive.log"
 
 cat > "$OUT/ExportOptions.plist" <<'EOF'
