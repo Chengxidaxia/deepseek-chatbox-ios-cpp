@@ -24,7 +24,9 @@ jobs:
 
       - name: Install curl + openssl for iOS
         run: |
-          "$VCPKG_ROOT/vcpkg" install curl:arm64-ios openssl:arm64-ios --clean-after-build
+          # 仓库根的 vcpkg.json 会让 vcpkg 进 manifest 模式（不接受包名参数），
+          # 这里用 --classic 强制 classic 模式 + 显式 triplet。
+          "$VCPKG_ROOT/vcpkg" install curl:arm64-ios openssl:arm64-ios --classic --clean-after-build
 
       - name: Show vcpkg toolchain
         run: |

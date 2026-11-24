@@ -91,7 +91,7 @@
 
   NSString *reasoning = m[@"reasoning"] ?: @"";
   if (reasoning.length) {
-    self.thinkLabel.text = [NSString stringWithFormat:@"💭 %@", reasoning];
+    self.thinkLabel.text = [NSString stringWithFormat:@"[思考] %@", reasoning];
     self.thinkLabel.hidden = NO;
   } else {
     self.thinkLabel.text = nil;
@@ -109,8 +109,8 @@
     self.usageLabel.hidden = YES;
   }
 
-  if ([m[@"streaming"] boolValue] && ![self.contentLabel.text hasSuffix:@"▍"]) {
-    self.contentLabel.text = [self.contentLabel.text stringByAppendingString:@"▍"];
+  if ([m[@"streaming"] boolValue] && ![self.contentLabel.text hasSuffix:@"|"]) {
+    self.contentLabel.text = [self.contentLabel.text stringByAppendingString:@"|"];
   }
 }
 
