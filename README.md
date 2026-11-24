@@ -63,7 +63,10 @@ cmake --build .build/native
 - [x] 数据模型 / SQLite 存储 / 加密（本机测试全绿）
 - [x] API 层直连（SSE / TTS / ASR）
 - [x] 内置工具引擎移植（40 工具 + 二维码 QR v1–40）
+- [x] P0 纯字符串工具补齐（`regex_test` / `csv_json` / `slugify` / `id_validator` / `hex_view` / `color_convert` / `text_kit`）
 - [x] iOS UIKit 界面（Fragment 序列渲染 / 工具卡片三态 / 分支切换 / 附件 / 语音输入）
+- [x] 「继续生成」入口（以收尾正文为前缀续写，新内容拼回同一条消息）
+- [x] 附件落盘为沙盒文件（`Documents/attachments/`，库里只存相对路径，老库自动迁移）
 - [x] iOS 云编译出 IPA（GitHub Actions，Ad-Hoc）
 
 ## iOS 界面与官方的对齐

@@ -2,6 +2,7 @@
 #include "util.hpp"
 #include "crypto.hpp"
 #include "store.hpp"
+#include <sqlite3.h>
 #include <iostream>
 #include <cassert>
 #include <filesystem>
@@ -116,7 +117,15 @@ int main() {
     std::vector<unsigned char> blob = {'P','N','G',0,1,2};
     std::string aid = st.putAttachment("a.png", "image/png", blob);
     auto att = st.getAttachment(aid);
-    CHECK(att && att->filename == "a.png" && att->data == blob, "附件 blob 存取");
+    CHECK(att && att->filename == "a.png" && att->data == blob, "附件读写往返");
+    // 落盘：库里只留相对路径，文件真实存在
+    CHECK(att && !att->path.empty() && att->path.find("att_") == 0, "附件 path 已回填: " + (att ? att->path : ""));
+    CHECK(std::filesystem::exists(std::filesystem::path(st.attachmentsDir()) / (att ? att->path : "")),
+          "附件文件已落盘到 attachments/");
+    CHECK(st.deleteAttachment(aid), "删除附件");
+    CHECK(!st.getAttachment(aid), "删除后读不到");
+    CHECK(!std::filesystem::exists(std::filesystem::path(st.attachmentsDir()) / (att ? att->path : "")),
+          "删除附件同时删掉文件");
 
     CHECK(st.setKeyEncrypted("sk-my-real-key", "5678", &err), "加密保存 Key: " + err);
     CHECK(st.hasKeyEncrypted(), "检测 Key 存在");
@@ -136,6 +145,58 @@ int main() {
     std::filesystem::remove(db, ec);
     std::filesystem::remove(db + "-wal", ec);
     std::filesystem::remove(db + "-shm", ec);
+  }
+
+  std::cout << "=== 老库附件迁移（blob → 文件）===\n";
+  {
+    std::string db2 = ".build/test_migrate.sqlite3";
+    std::error_code ec;
+    std::filesystem::remove(db2, ec);
+    std::filesystem::remove(db2 + "-wal", ec);
+    std::filesystem::remove(db2 + "-shm", ec);
+
+    // 造一个「老库」：attachments 只有 blob，没有 path 列
+    sqlite3* raw = nullptr;
+    CHECK(sqlite3_open(db2.c_str(), &raw) == SQLITE_OK, "创建老库");
+    CHECK(sqlite3_exec(raw,
+          "CREATE TABLE attachments (id TEXT PRIMARY KEY, filename TEXT, mime TEXT, data BLOB, created_at INTEGER);",
+          nullptr, nullptr, nullptr) == SQLITE_OK, "老库建表");
+    sqlite3_stmt* ins = nullptr;
+    CHECK(sqlite3_prepare_v2(raw,
+          "INSERT INTO attachments(id,filename,mime,data,created_at) VALUES(?,?,?,?,?)", -1, &ins, nullptr) == SQLITE_OK,
+          "老库准备插入");
+    const unsigned char oldBlob[] = {'J','P','G',0,9,8};
+    sqlite3_bind_text(ins,1,"att_old",-1,SQLITE_STATIC);
+    sqlite3_bind_text(ins,2,"old.jpg",-1,SQLITE_STATIC);
+    sqlite3_bind_text(ins,3,"image/jpeg",-1,SQLITE_STATIC);
+    sqlite3_bind_blob(ins,4,oldBlob,6,SQLITE_STATIC);
+    sqlite3_bind_int64(ins,5,1);
+    CHECK(sqlite3_step(ins) == SQLITE_DONE, "老库写入 blob");
+    sqlite3_finalize(ins);
+    sqlite3_close(raw);
+
+    std::string err;
+    {
+      Store st2(db2);
+      CHECK(st2.open(&err), "打开老库并迁移: " + err);
+      auto rec = st2.getAttachment("att_old");
+      std::vector<unsigned char> expect(oldBlob, oldBlob + 6);
+      CHECK(rec && rec->data == expect, "迁移后内容不变");
+      CHECK(rec && rec->path == "att_old.jpg", "迁移回填 path: " + (rec ? rec->path : ""));
+      CHECK(std::filesystem::exists(std::filesystem::path(st2.attachmentsDir()) / "att_old.jpg"),
+            "迁移写出文件");
+    }
+    {
+      // 幂等：二次打开不应重复迁移，也不应报错
+      Store st3(db2);
+      CHECK(st3.open(&err), "二次打开老库");
+      auto rec = st3.getAttachment("att_old");
+      CHECK(rec && rec->data.size() == 6, "二次打开仍可读");
+    }
+    std::filesystem::remove(std::filesystem::path(".build/attachments") / "att_old.jpg", ec);
+    std::filesystem::remove(db2, ec);
+    std::filesystem::remove(db2 + "-wal", ec);
+    std::filesystem::remove(db2 + "-shm", ec);
   }
 
   if (failed) { std::cerr << "\n" << failed << " 项失败\n"; return 1; }

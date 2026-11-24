@@ -61,6 +61,7 @@ extern NSString *const DSStrBranchSwitcher;          // branch_switcher_descript
 
 extern NSString *const DSStrCopy;                    // copy = 复制
 extern NSString *const DSStrCopied;                  // copyOk = 已复制
+extern NSString *const DSStrContinue;                // continue = 继续生成
 extern NSString *const DSStrShare;                   // share = 分享
 extern NSString *const DSStrReadAloud;               // voiceSwitchBottomSheetTitle = 朗读音色
 

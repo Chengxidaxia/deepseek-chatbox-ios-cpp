@@ -75,6 +75,106 @@ int main() {
     CHECK(!r.images.empty() && r.images[0].find("data:image/png;base64,")==0, "qr_text 返回 PNG dataURL");
   }
 
+  std::cout << "=== P0 纯字符串工具 ===\n";
+  {
+    // regex_test：\d+ 从 a1b22 抽到 1、22
+    auto r = eng.call("regex_test", {{"pattern","\\d+"},{"text","a1b22"}});
+    CHECK(r.ok && r.data["count"]==2, "regex 匹配 2 条: " + r.text);
+    CHECK(r.ok && r.data["matches"][0]["match"]=="1" && r.data["matches"][1]["match"]=="22", "regex 捕获 1/22");
+    // 命名组降级：std::regex 不认 (?<name>)，实现里转普通组并记名
+    r = eng.call("regex_test", {{"pattern","(?<year>\\d{4})-(?<month>\\d{2})"},{"text","2026-11"}});
+    CHECK(r.ok && r.data["matches"][0]["groups"]["year"]=="2026", "regex 命名组 year: " + r.text);
+    r = eng.call("regex_test", {{"pattern","("},{"text","x"}});
+    CHECK(!r.ok && r.text.find("正则表达式错误")!=std::string::npos, "regex 非法模式报错: " + r.text);
+    r = eng.call("regex_test", {{"pattern","z+"},{"text","abc"}});
+    CHECK(r.ok && r.data["count"]==0, "regex 无匹配 count=0");
+
+    // csv_json：引号内含逗号 / "" 转义，往返不变
+    r = eng.call("csv_json", {{"mode","toJson"},{"text","name,note\nalice,\"a,b\"\nbob,\"say \"\"hi\"\"\""}});
+    CHECK(r.ok && r.data["rows"]==2, "csv toJson 行数: " + r.text);
+    CHECK(r.ok && r.text.find("\"a,b\"")!=std::string::npos, "csv toJson 保留引号内逗号");
+    std::string csvBack = r.text;
+    r = eng.call("csv_json", {{"mode","toCsv"},{"text",csvBack}});
+    CHECK(r.ok && r.text.find("\"a,b\"")!=std::string::npos, "csv toCsv 重新加引号: " + r.text);
+    r = eng.call("csv_json", {{"mode","toCsv"},{"text","[]"}});
+    CHECK(!r.ok, "csv toCsv 空数组报错");
+
+    // slugify
+    r = eng.call("slugify", {{"text","Hello, World!"}});
+    CHECK(r.ok && r.text=="hello-world", "slugify Hello, World! → " + r.text);
+    r = eng.call("slugify", {{"text","  你好，世界  "}});
+    CHECK(r.ok && r.text.find("你好")!=std::string::npos && r.text.find("，")==std::string::npos,
+          "slugify 保留中文、去掉全角标点: " + r.text);
+    r = eng.call("slugify", {{"text","A  B---C"},{"separator","_"}});
+    CHECK(r.ok && r.text=="a_b_c", "slugify 自定义连接符: " + r.text);
+
+    // id_validator
+    r = eng.call("id_validator", {{"type","idcard"},{"value","11010519491231002X"}});
+    CHECK(r.ok && r.data["valid"]==true, "身份证合法: " + r.text);
+    r = eng.call("id_validator", {{"type","idcard"},{"value","110105194912310021"}});
+    CHECK(r.ok && r.data["valid"]==false, "身份证改末位不合法: " + r.text);
+    r = eng.call("id_validator", {{"type","idcard"},{"value","110105194902310021"}});
+    CHECK(r.ok && r.data["valid"]==false && r.text.find("出生日期无效")!=std::string::npos, "身份证 2 月 31 日被拦");
+    r = eng.call("id_validator", {{"type","email"},{"value","a@b.co"}});
+    CHECK(r.ok && r.data["valid"]==true, "邮箱合法");
+    r = eng.call("id_validator", {{"type","phone"},{"value","13800138000"}});
+    CHECK(r.ok && r.data["valid"]==true, "手机号合法");
+    r = eng.call("id_validator", {{"type","ipv4"},{"value","256.1.1.1"}});
+    CHECK(r.ok && r.data["valid"]==false, "IPv4 越界被拦");
+    r = eng.call("id_validator", {{"type","uuid"},{"value","3f2504e0-4f89-11d3-9a0c-0305e82c3301"}});
+    CHECK(r.ok && r.data["valid"]==true, "UUID 合法");
+
+    // hex_view：ASCII 往返 + UTF-8 中文按字节
+    r = eng.call("hex_view", {{"mode","toHex"},{"text","abc"}});
+    CHECK(r.ok && r.text.find("61 62 63")!=std::string::npos, "hex toHex: " + r.text);
+    CHECK(r.ok && r.data["hex"]=="616263", "hex 原始串");
+    r = eng.call("hex_view", {{"mode","fromHex"},{"text","0x61, 62 63"}});
+    CHECK(r.ok && r.text=="abc", "hex fromHex 多分隔符: " + r.text);
+    r = eng.call("hex_view", {{"mode","toHex"},{"text","中文"}});
+    std::string zhHex = r.data["hex"].get<std::string>();
+    r = eng.call("hex_view", {{"mode","fromHex"},{"text",zhHex}});
+    CHECK(r.ok && r.text=="中文", "hex UTF-8 中文往返: " + r.text);
+    r = eng.call("hex_view", {{"mode","fromHex"},{"text","61626"}});
+    CHECK(!r.ok, "hex 奇数长度报错");
+
+    // color_convert
+    r = eng.call("color_convert", {{"color","#3964FE"},{"background","#FFFFFF"}});
+    CHECK(r.ok && r.data["hex"]=="#3964FE", "color hex 规范化: " + r.text);
+    double bgContrast = r.data["contrastWithBackground"].get<double>();
+    CHECK(bgContrast > 4.5 && bgContrast < 5.0, "color 对白对比度 ≈4.74: " + std::to_string(bgContrast));
+    r = eng.call("color_convert", {{"color","rgb(30,144,255)"}});
+    CHECK(r.ok && r.data["hex"]=="#1E90FF", "color rgb() 解析: " + r.text);
+    r = eng.call("color_convert", {{"color","hsl(210,100%,56%)"}});
+    CHECK(r.ok, "color hsl() 解析: " + r.text);
+    r = eng.call("color_convert", {{"color","red"}});
+    CHECK(r.ok && r.data["hex"]=="#FF0000", "color 色名解析");
+    r = eng.call("color_convert", {{"color","不是颜色"}});
+    CHECK(!r.ok, "color 非法输入报错");
+
+    // text_kit：6 个 action 各一条
+    r = eng.call("text_kit", {{"action","dedupe"},{"text","a\nb\na\n\nA"}});
+    CHECK(r.ok && r.data["after"]==3, "text_kit dedupe: " + r.text);
+    r = eng.call("text_kit", {{"action","dedupe"},{"text","a\nA"},{"ignore_case",true}});
+    CHECK(r.ok && r.data["after"]==1, "text_kit dedupe 忽略大小写");
+    r = eng.call("text_kit", {{"action","sort"},{"text","10\n9\n100"},{"numeric",true}});
+    CHECK(r.ok && r.text=="9\n10\n100", "text_kit sort numeric: " + r.text);
+    r = eng.call("text_kit", {{"action","trim"},{"text","  a   b  \n\n c "}});
+    CHECK(r.ok && r.text=="a b\nc", "text_kit trim: " + r.text);
+    r = eng.call("text_kit", {{"action","wrap"},{"text","a\nb"},{"prefix","- "}});
+    CHECK(r.ok && r.text=="- a\n- b", "text_kit wrap: " + r.text);
+    r = eng.call("text_kit", {{"action","split"},{"text","a, b ,, c"},{"delimiter",","}});
+    // 编号沿用原始下标（与 Web 版一致），空段被过滤但序号不重排
+    CHECK(r.ok && r.text=="1. a\n2. b\n4. c", "text_kit split: " + r.text);
+    r = eng.call("text_kit", {{"action","case"},{"text","userName"},{"case_type","snake"}});
+    CHECK(r.ok && r.text=="user_name", "text_kit case snake: " + r.text);
+    r = eng.call("text_kit", {{"action","case"},{"text","HTTPResponse"},{"case_type","kebab"}});
+    CHECK(r.ok && r.text=="http-response", "text_kit case kebab: " + r.text);
+    r = eng.call("text_kit", {{"action","case"},{"text","hello world"},{"case_type","camel"}});
+    CHECK(r.ok && r.text=="helloWorld", "text_kit case camel: " + r.text);
+    r = eng.call("text_kit", {{"action","nope"},{"text","x"}});
+    CHECK(!r.ok, "text_kit 未知 action 报错");
+  }
+
   std::cout << "=== 工具搜索 ===\n";
   {
     auto hits = eng.search("计算表达式", 3);

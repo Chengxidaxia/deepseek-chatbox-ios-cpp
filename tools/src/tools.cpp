@@ -1,6 +1,7 @@
 // 内置工具引擎实现：对照 Web 版 tools-browser.js。
 #include "tools.hpp"
 #include "qr-core.hpp"
+#include "text-tools.hpp"
 #include "util.hpp"
 #include "crypto.hpp"   // sha256hex
 #include <cmath>
@@ -634,11 +635,14 @@ static ToolResult callImpl(const std::string& name, const json& a, const ToolCon
     return ok(text, {{"same",same},{"added",added},{"removed",removed}});
   }
   if (name == "json_minify") { /* 上面已处理 */ }
-  if (name == "text_kit") {
-    std::string action=sarg(a,"action"), text=sarg(a,"text");
-    if(text.empty())return fail("缺少 text 参数。");
-    return fail("text_kit 的 action「"+action+"」暂未实现。");
-  }
+  // --- P0 纯字符串类（实现见 tools/src/text-tools.cpp）---
+  if (name == "regex_test")    return texttools::regexTest(a);
+  if (name == "csv_json")      return texttools::csvJson(a);
+  if (name == "slugify")       return texttools::slugify(a);
+  if (name == "id_validator")  return texttools::idValidator(a);
+  if (name == "hex_view")      return texttools::hexView(a);
+  if (name == "color_convert") return texttools::colorConvert(a);
+  if (name == "text_kit")      return texttools::textKit(a);
   if (name == "aes_crypto") {
     return fail("AES 工具需 Web Crypto，C++ 版请用专门的加解密接口。");
   }

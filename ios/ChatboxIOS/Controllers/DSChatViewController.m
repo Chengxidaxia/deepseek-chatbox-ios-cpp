@@ -39,6 +39,11 @@
 @property (nonatomic, strong) NSMutableArray<NSMutableDictionary *> *streamRounds;
 @property (nonatomic, assign) NSInteger streamTurnStart;   // 本次生成在 rawMessages 里的起点
 
+// 继续生成（续写）：把某条回答的正文当前缀让模型接着写
+@property (nonatomic, assign) NSInteger continueTargetIdx;  // 目标消息下标，-1 表示不在续写
+@property (nonatomic, copy, nullable) NSString *continuePrefixText;
+@property (nonatomic, copy, nullable) NSString *pendingContinuePrefix;  // 解锁后要接着发的前缀
+
 // 视图
 @property (nonatomic, strong) UITableView *tableView;
 @property (nonatomic, strong) UIVisualEffectView *composer;
@@ -75,6 +80,7 @@
     _rawMessages = [NSMutableArray array];
     _pending = [NSMutableArray array];
     _streamRounds = [NSMutableArray array];
+    _continueTargetIdx = -1;
     [self reloadMessagesFromStore];
   }
   return self;
@@ -455,13 +461,26 @@
                                       handler:^(UIAlertAction *act) {
     NSError *err = nil;
     BOOL ok = [[DSBoxService shared] unlockWithPin:a.textFields.firstObject.text error:&err];
-    if (ok) [ws startStream];
+    if (ok) {
+      if (ws.pendingContinuePrefix.length) {
+        NSString *prefix = ws.pendingContinuePrefix;
+        ws.pendingContinuePrefix = nil;
+        [ws startStreamWithContinuePrefix:prefix];
+      } else {
+        [ws startStream];
+      }
+    }
     else [ws showError:err.localizedDescription];
   }]];
   [self presentViewController:a animated:YES completion:nil];
 }
 
 - (void)startStream {
+  [self startStreamWithContinuePrefix:nil];
+}
+
+/// prefix 非空表示续写：core 会把该前缀作为 assistant 前缀发给模型，只返回新增内容
+- (void)startStreamWithContinuePrefix:(nullable NSString *)prefix {
   self.streaming = YES;
   [self.streamRounds removeAllObjects];
   self.streamTurnStart = (NSInteger)self.rawMessages.count;
@@ -470,9 +489,13 @@
   [self scrollToBottomAnimated:YES];
 
   NSError *err = nil;
-  if (![[DSBoxService shared] streamChatWithConversation:self.convId delegate:self error:&err]) {
-    [self finishWithError:err];
-  }
+  BOOL ok = prefix.length
+      ? [[DSBoxService shared] streamChatWithConversation:self.convId
+                                          continuePrefix:prefix
+                                                delegate:self
+                                                   error:&err]
+      : [[DSBoxService shared] streamChatWithConversation:self.convId delegate:self error:&err];
+  if (!ok) [self finishWithError:err];
 }
 
 - (void)stop {
@@ -494,6 +517,9 @@
   for (NSMutableDictionary *r in self.streamRounds) r[@"streaming"] = @NO;
   NSMutableArray *rounds = self.streamRounds;
   self.streamRounds = [NSMutableArray array];
+  self.continueTargetIdx = -1;
+  self.continuePrefixText = nil;
+  self.pendingContinuePrefix = nil;
 
   // 统一落盘：本次回答写进分支候选，再用内存中的完整消息覆盖，避免半截历史
   [self dropEmptyTrailingRound];
@@ -781,6 +807,16 @@
 
   switch (type) {
     case DSBoxStreamEventRound: {
+      // 续写第一轮：不新建气泡，直接复用被续写的那条消息（新内容追加到原正文后面）
+      if (self.continueTargetIdx >= 0 &&
+          (NSInteger)self.rawMessages.count == self.continueTargetIdx + 1) {
+        NSMutableDictionary *m = self.rawMessages[(NSUInteger)self.continueTargetIdx];
+        m[@"streaming"] = @YES;
+        [self.streamRounds addObject:m];
+        [self rebuildTurnsAndReload];
+        [self scrollToBottomAnimated:YES];
+        break;
+      }
       // 新一轮：新建一条 assistant 占位（官方 Fragment 序列里每轮各自成段）
       NSMutableDictionary *m = [@{
         @"id": [[NSUUID UUID] UUIDString], @"role": @"assistant", @"content": @"",
@@ -843,6 +879,13 @@
       if (![final isKindOfClass:NSDictionary.class]) break;
       NSMutableDictionary *merged = [final mutableCopy];
       merged[@"streaming"] = @NO;
+      // 续写：服务端只回新增内容，正文要拼回原前缀，id 也保持原值（分支快照按 id 引用）
+      if (cur && self.continueTargetIdx >= 0 &&
+          [self.rawMessages indexOfObjectIdenticalTo:cur] == (NSUInteger)self.continueTargetIdx) {
+        NSString *add = [merged[@"content"] isKindOfClass:NSString.class] ? merged[@"content"] : @"";
+        merged[@"content"] = [(self.continuePrefixText ?: @"") stringByAppendingString:add];
+        if (cur[@"id"]) merged[@"id"] = cur[@"id"];
+      }
       if (cur) {
         NSUInteger idx = [self.rawMessages indexOfObjectIdenticalTo:cur];
         if (idx != NSNotFound) self.rawMessages[idx] = merged;
@@ -946,6 +989,35 @@
   [self startStream];
 }
 
+/// 「继续生成」：以该条回答的正文为前缀续写，新内容拼回同一条消息（对齐 Web 版 continueGeneration）
+- (void)messageCellDidTapContinue:(DSMessageCell *)cell {
+  DSTurn *turn = cell.turn;
+  if (!turn || turn.role != DSTurnRoleAssistant || self.streaming) return;
+
+  NSDictionary *tail = turn.tailRound;
+  if (!tail) return;
+  NSString *content = [tail[@"content"] isKindOfClass:NSString.class] ? tail[@"content"] : @"";
+  if (content.length == 0) return;
+
+  NSUInteger idx = [self.rawMessages indexOfObjectIdenticalTo:tail];
+  if (idx == NSNotFound) return;
+  // 只允许续写最后一条回答：中间轮次续写会和后面的消息打架
+  if ((NSInteger)idx + 1 != (NSInteger)self.rawMessages.count) {
+    [self toast:@"只能对最后一条回答继续生成"];
+    return;
+  }
+
+  self.continueTargetIdx = (NSInteger)idx;
+  self.continuePrefixText = content;
+
+  if (![[DSBoxService shared] isUnlocked]) {
+    self.pendingContinuePrefix = content;
+    [self promptUnlockThenStart];
+    return;
+  }
+  [self startStreamWithContinuePrefix:content];
+}
+
 - (void)messageCell:(DSMessageCell *)cell didSwitchBranch:(NSInteger)delta {
   if (self.streaming) return;
   NSInteger userIdx = [self userIndexForTurn:cell.turn];
@@ -1045,6 +1117,8 @@
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
   DSMessageCell *cell = [tableView dequeueReusableCellWithIdentifier:@"turn" forIndexPath:indexPath];
   cell.delegate = self;
+  // 「继续生成」只出现在最后一条回答上
+  cell.showContinue = (indexPath.row == (NSInteger)self.turns.count - 1);
   [cell configureWithTurn:self.turns[(NSUInteger)indexPath.row]];
   return cell;
 }

@@ -493,6 +493,13 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
 - (BOOL)streamChatWithConversation:(NSString *)convId
                           delegate:(id<DSBoxChatDelegate>)delegate
                              error:(NSError **)error {
+  return [self streamChatWithConversation:convId continuePrefix:nil delegate:delegate error:error];
+}
+
+- (BOOL)streamChatWithConversation:(NSString *)convId
+                    continuePrefix:(NSString *)continuePrefix
+                          delegate:(id<DSBoxChatDelegate>)delegate
+                             error:(NSError **)error {
   if (!store_ || !api_) { if (error) *error = MakeErr(@"核心未初始化"); return NO; }
   if (unlockedKey_.empty()) { if (error) *error = MakeErr(@"请先解锁 Key"); return NO; }
   auto c = store_->getConversation(StdStr(convId));
@@ -504,6 +511,14 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
   // 历史与工具定义在这里取一次快照，交给后台循环；循环内不再读库，保证同一轮提问内一致
   Settings st = store_->settings();
   std::vector<Message> history = c->messages;
+  const std::string prefix = StdStr(continuePrefix ?: @"");
+  if (!prefix.empty()) {
+    // 续写：被续写的那条回答不作为历史发送，改由 buildPayload 以 prefix 形式追加到末尾
+    while (!history.empty() && history.back().role == "assistant" && history.back().content.empty() &&
+           history.back().toolCalls.empty())
+      history.pop_back();
+    if (!history.empty() && history.back().role == "assistant") history.pop_back();
+  }
   // 图片附件按 attId 从库里补出 data URL（存在库里而不是消息 JSON 里，避免消息膨胀）
   for (auto &m : history) {
     for (auto &a : m.attachments) {
@@ -532,7 +547,7 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
   // libcurl + 工具执行都在后台队列，UI 只收事件
   dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
     [self runAgentLoopWithHistory:history settings:st toolDefs:toolDefs
-                        delegate:delegate apiKey:apiKey];
+                   continuePrefix:prefix delegate:delegate apiKey:apiKey];
   });
   return YES;
 }
@@ -545,6 +560,7 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
 - (void)runAgentLoopWithHistory:(std::vector<Message>)history
                        settings:(Settings)st
                        toolDefs:(std::vector<json>)toolDefs
+                 continuePrefix:(std::string)continuePrefix
                        delegate:(id<DSBoxChatDelegate>)delegate
                          apiKey:(std::string)apiKey {
   const int kMaxRounds = 10;
@@ -564,7 +580,10 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
     // 轮次用满：关掉工具通道并说明原因，让模型基于已有结果收尾，而不是静默中断
     const bool lastRound = (round == kMaxRounds - 1);
     json payload = ApiClient::buildPayload(history, st,
-        lastRound ? std::vector<json>{} : toolDefs);
+        lastRound ? std::vector<json>{} : toolDefs, false,
+        round == 0 ? continuePrefix : std::string());
+    // 续写只有第一轮带前缀；__beta 与 Web 版一致，告知上游走续写模式
+    if (round == 0 && !continuePrefix.empty()) payload["__beta"] = true;
     if (lastRound && payload.contains("messages") && payload["messages"].is_array()) {
       const std::string note =
           "【系统提示】本次提问中，「请求工具 → 看结果 → 再请求」的往返轮次已经用满（上限 10 轮），"

@@ -56,6 +56,7 @@ NSString *const DSStrBranchSwitcher = @"第 %1$ld 条消息（共 %2$ld 条）";
 
 NSString *const DSStrCopy = @"复制";
 NSString *const DSStrCopied = @"已复制";
+NSString *const DSStrContinue = @"继续生成";
 NSString *const DSStrShare = @"分享";
 NSString *const DSStrReadAloud = @"朗读音色";
 

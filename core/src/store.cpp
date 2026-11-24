@@ -3,6 +3,8 @@
 #include "crypto.hpp"
 #include <sqlite3.h>
 #include <filesystem>
+#include <fstream>
+#include <cctype>
 #include <stdexcept>
 
 namespace fs = std::filesystem;
@@ -51,6 +53,19 @@ bool Store::open(std::string* err) {
     CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
   )SQL";
   if (!exec(ddl, err)) return false;
+
+  // 附件目录：Documents/attachments/（与 db.sqlite3 同级）
+  try {
+    fs::path dbp(dbPath_);
+    fs::path base = dbp.has_parent_path() ? dbp.parent_path() : fs::path(".");
+    attachmentsDir_ = (base / "attachments").string();
+    fs::create_directories(attachmentsDir_);
+  } catch (const std::exception& ex) {
+    if (err) *err = std::string("创建附件目录失败: ") + ex.what();
+    return false;
+  }
+  ensureAttachmentColumn();
+  migrateAttachmentsToFiles();
   loadMeta();
   return true;
 }
@@ -293,10 +308,109 @@ bool Store::saveGroups(const std::vector<Group>& groups) {
 }
 
 // ------------------------------ 附件 ------------------------------
+// 落盘策略：图片/文件写进 Documents/attachments/，库里只留相对文件名（path），
+// data 列仅在「写文件失败」时兜底存 blob。老库（只有 blob）在 open() 时自动迁移。
+
+namespace {
+// 从原始文件名取扩展名；不可用时按 mime 兜底
+std::string attachmentExt(const std::string& filename, const std::string& mime) {
+  size_t dot = filename.find_last_of('.');
+  if (dot != std::string::npos && dot + 1 < filename.size()) {
+    std::string e = filename.substr(dot);
+    if (e.size() <= 9) {
+      bool okChars = true;
+      for (size_t i = 1; i < e.size(); i++)
+        if (!std::isalnum((unsigned char)e[i])) { okChars = false; break; }
+      if (okChars) {
+        for (auto& c : e) c = (char)std::tolower((unsigned char)c);
+        return e;
+      }
+    }
+  }
+  if (mime == "image/jpeg" || mime == "image/jpg") return ".jpg";
+  if (mime == "image/png") return ".png";
+  if (mime == "image/gif") return ".gif";
+  if (mime == "image/webp") return ".webp";
+  if (mime == "image/heic") return ".heic";
+  if (mime == "application/pdf") return ".pdf";
+  if (mime.rfind("text/", 0) == 0) return ".txt";
+  return ".bin";
+}
+
+bool writeWholeFile(const std::string& path, const std::vector<unsigned char>& data) {
+  std::ofstream f(path, std::ios::binary | std::ios::trunc);
+  if (!f) return false;
+  if (!data.empty()) f.write(reinterpret_cast<const char*>(data.data()), (std::streamsize)data.size());
+  f.close();
+  return !f.fail();
+}
+
+bool readWholeFile(const std::string& path, std::vector<unsigned char>* out) {
+  std::ifstream f(path, std::ios::binary);
+  if (!f) return false;
+  std::string bytes((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+  out->assign(bytes.begin(), bytes.end());
+  return true;
+}
+}  // namespace
+
+/// 老库补 path 列（SQLite 的 ADD COLUMN 不能重复执行，先查 table_info）
+bool Store::ensureAttachmentColumn() {
+  if (!db_) return false;
+  bool hasPath = false;
+  sqlite3_stmt* st = nullptr;
+  if (sqlite3_prepare_v2(db_, "PRAGMA table_info(attachments)", -1, &st, nullptr) == SQLITE_OK) {
+    while (sqlite3_step(st) == SQLITE_ROW) {
+      const char* name = (const char*)sqlite3_column_text(st, 1);
+      if (name && std::string(name) == "path") { hasPath = true; break; }
+    }
+    sqlite3_finalize(st);
+  }
+  if (hasPath) return true;
+  return exec("ALTER TABLE attachments ADD COLUMN path TEXT DEFAULT ''");
+}
+
+/// 把历史 blob 搬成文件：写 attachments/<id><ext>，再把 data 置空、path 回填
+bool Store::migrateAttachmentsToFiles() {
+  if (!db_) return false;
+  struct Row { std::string id, filename; std::vector<unsigned char> data; };
+  std::vector<Row> rows;
+  sqlite3_stmt* st = nullptr;
+  if (sqlite3_prepare_v2(db_,
+        "SELECT id,filename,data FROM attachments WHERE data IS NOT NULL AND (path IS NULL OR path='')",
+        -1, &st, nullptr) != SQLITE_OK) return false;
+  while (sqlite3_step(st) == SQLITE_ROW) {
+    Row r;
+    const char* id = (const char*)sqlite3_column_text(st, 0);
+    const char* fn = (const char*)sqlite3_column_text(st, 1);
+    r.id = id ? id : "";
+    r.filename = fn ? fn : "";
+    const void* blob = sqlite3_column_blob(st, 2);
+    int n = sqlite3_column_bytes(st, 2);
+    if (blob && n > 0) r.data.assign((const unsigned char*)blob, (const unsigned char*)blob + n);
+    if (!r.id.empty()) rows.push_back(std::move(r));
+  }
+  sqlite3_finalize(st);
+
+  for (const auto& r : rows) {
+    std::string name = r.id + attachmentExt(r.filename, "");
+    std::string full = (fs::path(attachmentsDir_) / name).string();
+    if (!writeWholeFile(full, r.data)) continue;  // 写不进去就留着 blob，下次再迁
+    sqlite3_stmt* up = nullptr;
+    if (sqlite3_prepare_v2(db_, "UPDATE attachments SET path=?, data=NULL WHERE id=?", -1, &up, nullptr) == SQLITE_OK) {
+      sqlite3_bind_text(up, 1, name.c_str(), -1, SQLITE_TRANSIENT);
+      sqlite3_bind_text(up, 2, r.id.c_str(), -1, SQLITE_TRANSIENT);
+      sqlite3_step(up);
+    }
+    sqlite3_finalize(up);
+  }
+  return true;
+}
+
 std::optional<Store::AttachmentRecord> Store::getAttachment(const std::string& id) {
   std::lock_guard<std::mutex> lk(mu_);
   sqlite3_stmt* st = nullptr;
-  if (sqlite3_prepare_v2(db_, "SELECT filename,mime,data,created_at FROM attachments WHERE id=?", -1, &st, nullptr) != SQLITE_OK) return std::nullopt;
+  if (sqlite3_prepare_v2(db_, "SELECT filename,mime,data,created_at,path FROM attachments WHERE id=?", -1, &st, nullptr) != SQLITE_OK) return std::nullopt;
   sqlite3_bind_text(st,1,id.c_str(),-1,SQLITE_TRANSIENT);
   std::optional<AttachmentRecord> out;
   if (sqlite3_step(st) == SQLITE_ROW) {
@@ -308,6 +422,11 @@ std::optional<Store::AttachmentRecord> Store::getAttachment(const std::string& i
     int n = sqlite3_column_bytes(st,2);
     if (blob && n > 0) a.data.assign((const unsigned char*)blob, (const unsigned char*)blob + n);
     a.createdAt = sqlite3_column_int64(st,3);
+    const char* p = (const char*)sqlite3_column_text(st,4);
+    if (p) a.path = p;
+    // 文件优先：库里只存路径，读的时候按需加载
+    if (a.data.empty() && !a.path.empty())
+      readWholeFile((fs::path(attachmentsDir_) / a.path).string(), &a.data);
     out = a;
   }
   sqlite3_finalize(st);
@@ -318,13 +437,19 @@ std::string Store::putAttachment(const std::string& filename, const std::string&
                                   const std::vector<unsigned char>& data) {
   std::lock_guard<std::mutex> lk(mu_);
   std::string id = "att_" + util::shortId("").substr(1);
+  std::string name = id + attachmentExt(filename, mime);
+  std::string full = (fs::path(attachmentsDir_) / name).string();
+  const bool wroteFile = writeWholeFile(full, data);
+
   sqlite3_stmt* st = nullptr;
-  if (sqlite3_prepare_v2(db_, "INSERT INTO attachments(id,filename,mime,data,created_at) VALUES(?,?,?,?,?)", -1, &st, nullptr) == SQLITE_OK) {
+  if (sqlite3_prepare_v2(db_, "INSERT INTO attachments(id,filename,mime,data,created_at,path) VALUES(?,?,?,?,?,?)", -1, &st, nullptr) == SQLITE_OK) {
     sqlite3_bind_text(st,1,id.c_str(),-1,SQLITE_TRANSIENT);
     sqlite3_bind_text(st,2,filename.c_str(),-1,SQLITE_TRANSIENT);
     sqlite3_bind_text(st,3,mime.c_str(),-1,SQLITE_TRANSIENT);
-    sqlite3_bind_blob(st,4,data.empty()?nullptr:data.data(),(int)data.size(),SQLITE_TRANSIENT);
+    if (wroteFile) sqlite3_bind_null(st,4);  // 已落盘：库里不留副本
+    else sqlite3_bind_blob(st,4,data.empty()?nullptr:data.data(),(int)data.size(),SQLITE_TRANSIENT);
     sqlite3_bind_int64(st,5,util::nowMs());
+    sqlite3_bind_text(st,6,wroteFile?name.c_str():"",-1,SQLITE_TRANSIENT);
     sqlite3_step(st);
   }
   sqlite3_finalize(st);
@@ -333,11 +458,27 @@ std::string Store::putAttachment(const std::string& filename, const std::string&
 
 bool Store::deleteAttachment(const std::string& id) {
   std::lock_guard<std::mutex> lk(mu_);
+  // 先取路径，行删掉后再删文件（顺序反了会留下孤儿文件）
+  std::string path;
+  sqlite3_stmt* q = nullptr;
+  if (sqlite3_prepare_v2(db_, "SELECT path FROM attachments WHERE id=?", -1, &q, nullptr) == SQLITE_OK) {
+    sqlite3_bind_text(q,1,id.c_str(),-1,SQLITE_TRANSIENT);
+    if (sqlite3_step(q) == SQLITE_ROW) {
+      const char* p = (const char*)sqlite3_column_text(q,0);
+      if (p) path = p;
+    }
+  }
+  sqlite3_finalize(q);
+
   sqlite3_stmt* st = nullptr;
   if (sqlite3_prepare_v2(db_, "DELETE FROM attachments WHERE id=?", -1, &st, nullptr) != SQLITE_OK) return false;
   sqlite3_bind_text(st,1,id.c_str(),-1,SQLITE_TRANSIENT);
   bool ok = sqlite3_step(st) == SQLITE_DONE;
   sqlite3_finalize(st);
+  if (ok && !path.empty()) {
+    std::error_code ec;
+    fs::remove(fs::path(attachmentsDir_) / path, ec);
+  }
   return ok;
 }
 

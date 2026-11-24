@@ -35,6 +35,7 @@
 @property (nonatomic, strong) DSBranchBar *assistBranchBar;
 @property (nonatomic, strong) UIButton *btnCopy;
 @property (nonatomic, strong) UIButton *btnRegen;
+@property (nonatomic, strong) UIButton *btnContinue;
 // 状态
 @property (nonatomic, strong, readwrite, nullable) DSTurn *turn;
 @property (nonatomic, copy) NSString *signature;
@@ -138,12 +139,13 @@
   _assistBranchBar = [[DSBranchBar alloc] initWithFrame:CGRectZero];
   _btnCopy = [self footerButtonWithTitle:DSStrCopy action:@selector(onCopyTapped)];
   _btnRegen = [self footerButtonWithTitle:DSStrRegenerate action:@selector(regenTapped)];
+  _btnContinue = [self footerButtonWithTitle:DSStrContinue action:@selector(continueTapped)];
 
   UIView *spacer = [[UIView alloc] init];
   [spacer setContentHuggingPriority:UILayoutPriorityDefaultLow forAxis:UILayoutConstraintAxisHorizontal];
 
   _footerStack = [[UIStackView alloc] initWithArrangedSubviews:
-      @[_assistBranchBar, _usageLabel, spacer, _btnCopy, _btnRegen]];
+      @[_assistBranchBar, _usageLabel, spacer, _btnContinue, _btnCopy, _btnRegen]];
   _footerStack.axis = UILayoutConstraintAxisHorizontal;
   _footerStack.spacing = 12;
   _footerStack.alignment = UIStackViewAlignmentCenter;
@@ -458,7 +460,9 @@
   NSString *tailContent = [tail[@"content"] isKindOfClass:NSString.class] ? tail[@"content"] : @"";
   _btnCopy.hidden = t.streaming || tailContent.length == 0;
   _btnRegen.hidden = t.streaming || t.rounds.count == 0;
-  BOOL footerEmpty = _usageLabel.hidden && _btnCopy.hidden && _btnRegen.hidden && !hasBranch;
+  // 续写只在最后一条回答上出现（控制器按行号置 showContinue）
+  _btnContinue.hidden = !self.showContinue || t.streaming || tailContent.length == 0;
+  BOOL footerEmpty = _usageLabel.hidden && _btnCopy.hidden && _btnRegen.hidden && _btnContinue.hidden && !hasBranch;
   _footerStack.hidden = footerEmpty;
 }
 
@@ -637,6 +641,12 @@
 - (void)regenTapped {
   if ([self.delegate respondsToSelector:@selector(messageCellDidTapRegenerate:)]) {
     [self.delegate messageCellDidTapRegenerate:self];
+  }
+}
+
+- (void)continueTapped {
+  if ([self.delegate respondsToSelector:@selector(messageCellDidTapContinue:)]) {
+    [self.delegate messageCellDidTapContinue:self];
   }
 }
 

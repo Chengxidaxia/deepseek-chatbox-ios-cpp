@@ -43,10 +43,11 @@ class Store {
   std::vector<Group> allGroups();
   bool saveGroups(const std::vector<Group>& groups);
 
-  // ---- 附件（blob 存 SQLite）----
+  // ---- 附件（文件存 Documents/attachments/，库里只留相对路径）----
   struct AttachmentRecord {
     std::string id, filename, mime;
-    std::vector<unsigned char> data;
+    std::string path;                 // 相对 attachments/ 的文件名；老库迁移前为空
+    std::vector<unsigned char> data;  // 按需从文件读出
     int64_t createdAt = 0;
   };
   std::optional<AttachmentRecord> getAttachment(const std::string& id);
@@ -63,9 +64,12 @@ class Store {
 
   // 数据库路径
   const std::string& dbPath() const { return dbPath_; }
+  // 附件目录（Documents/attachments/），open() 后有效
+  const std::string& attachmentsDir() const { return attachmentsDir_; }
 
  private:
   std::string dbPath_;
+  std::string attachmentsDir_;
   sqlite3* db_ = nullptr;
   mutable std::mutex mu_;
   Settings settings_;
@@ -73,6 +77,9 @@ class Store {
   bool loadMeta();
   bool persistMeta();
   bool exec(const std::string& sql, std::string* err = nullptr);
+  // 老库把 blob 搬成文件：写文件 + 清空 blob + 回填 path
+  bool migrateAttachmentsToFiles();
+  bool ensureAttachmentColumn();
 };
 
 }  // namespace ds

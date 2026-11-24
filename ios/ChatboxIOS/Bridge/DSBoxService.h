@@ -120,6 +120,13 @@ typedef NS_ENUM(NSInteger, DSBoxStreamEventType) {
 - (BOOL)streamChatWithConversation:(NSString *)convId
                           delegate:(id<DSBoxChatDelegate>)delegate
                              error:(NSError **)error;
+/// 续写：把 continuePrefix 作为 assistant 前缀继续生成（对齐 Web 版 continueMode）。
+/// 历史里的最后一条 assistant（即被续写的那条）会从请求中摘掉，服务端只返回新增内容，
+/// 调用方负责把新内容拼回原消息。
+- (BOOL)streamChatWithConversation:(NSString *)convId
+                    continuePrefix:(nullable NSString *)continuePrefix
+                          delegate:(id<DSBoxChatDelegate>)delegate
+                             error:(NSError **)error;
 /// 中止当前流式请求（UI 的「停止」按钮）
 - (void)stopStream;
 
