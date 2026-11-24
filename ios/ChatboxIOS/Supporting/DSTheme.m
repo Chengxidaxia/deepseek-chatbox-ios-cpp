@@ -46,9 +46,9 @@
 
 #pragma mark - 文字
 
-+ (UIColor *)labelPrimary { return [self dynamicLight:[self hex:0x0F1115] dark:[self hex:0xF9FAFB]]; }
-+ (UIColor *)labelSecondary { return [self dynamicLight:[self hex:0x61666B] dark:[self hex:0xCFD3D6]]; }
-+ (UIColor *)labelTertiary { return [self dynamicLight:[self hex:0x81858C] dark:[self hex:0xADB2B8]]; }
++ (UIColor *)labelPrimary { return [self dynamicLight:[self hex:0x0F0F0F] dark:[self hex:0xF9FAFB]]; }
++ (UIColor *)labelSecondary { return [self dynamicLight:[self hex:0x7D7F85] dark:[self hex:0xCFD3D6]]; }
++ (UIColor *)labelTertiary { return [self dynamicLight:[self hex:0x8E9094] dark:[self hex:0xADB2B8]]; }
 + (UIColor *)labelCaption { return [self dynamicLight:[self hex:0xADB2B8] dark:[self hex:0x81858C]]; }
 
 #pragma mark - 描边
@@ -62,10 +62,10 @@
 
 #pragma mark - 品牌与气泡
 
-+ (UIColor *)brand { return [self dynamicLight:[self hex:0x3964FE] dark:[self hex:0x5686FE]]; }
++ (UIColor *)brand { return [self dynamicLight:[self hex:0x426EFE] dark:[self hex:0x5686FE]]; }
 + (UIColor *)userBubble { return [self dynamicLight:[self hex:0xEDF3FE] dark:[self hex:0x2C2C2E]]; }
 + (UIColor *)toolCardBG { return [self dynamicLight:[self hex:0xF9FAFB] dark:[self hex:0x232324]]; }
-+ (UIColor *)danger { return [self dynamicLight:[self hex:0xEC1313] dark:[self hex:0xF25A5A]]; }
++ (UIColor *)danger { return [self dynamicLight:[self hex:0xEF4444] dark:[self hex:0xF25A5A]]; }
 
 #pragma mark - 字体
 

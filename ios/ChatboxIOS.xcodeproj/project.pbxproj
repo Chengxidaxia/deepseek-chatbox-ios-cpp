@@ -22,6 +22,8 @@
 		192E428FD019875C5D2054F2 /* DSTheme.m in Sources */ = {isa = PBXBuildFile; fileRef = B4938CA75DB009429371D332 /* DSTheme.m */; };
 		9EC6E4410A28BA920F06F95A /* DSStrings.m in Sources */ = {isa = PBXBuildFile; fileRef = 765FF178BA9CB186EE4FC251 /* DSStrings.m */; };
 		D0D83AABD22CF68964F5290E /* DSIcon.m in Sources */ = {isa = PBXBuildFile; fileRef = 5BD3CDE4AC44E57601314589 /* DSIcon.m */; };
+		A1B2C3D4E5F60718293A4B02 /* DSIconAssets.m in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B01 /* DSIconAssets.m */; };
+		A1B2C3D4E5F60718293A4B05 /* DSSVGIcon.m in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B04 /* DSSVGIcon.m */; };
 		01254C7FCCDF46E8356C958C /* store.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 94547846DA3EF6DC5D13E641 /* store.cpp */; };
 		30B6AF5094CD7D0C3386FE1B /* api.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE40ECFBB45B50CBB7FB3889 /* api.cpp */; };
 		EED3B72F2AC8DD8EBC0AC925 /* tools.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E96DC8B3664B9C9BCF2671FC /* tools.cpp */; };
@@ -51,6 +53,10 @@
 		B4938CA75DB009429371D332 /* DSTheme.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Supporting/DSTheme.m; sourceTree = SOURCE_ROOT; };
 		765FF178BA9CB186EE4FC251 /* DSStrings.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Supporting/DSStrings.m; sourceTree = SOURCE_ROOT; };
 		5BD3CDE4AC44E57601314589 /* DSIcon.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Supporting/DSIcon.m; sourceTree = SOURCE_ROOT; };
+		A1B2C3D4E5F60718293A4B01 /* DSIconAssets.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Supporting/DSIconAssets.m; sourceTree = SOURCE_ROOT; };
+		A1B2C3D4E5F60718293A4B03 /* DSIconAssets.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Supporting/DSIconAssets.h; sourceTree = SOURCE_ROOT; };
+		A1B2C3D4E5F60718293A4B04 /* DSSVGIcon.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Supporting/DSSVGIcon.m; sourceTree = SOURCE_ROOT; };
+		A1B2C3D4E5F60718293A4B06 /* DSSVGIcon.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Supporting/DSSVGIcon.h; sourceTree = SOURCE_ROOT; };
 		94547846DA3EF6DC5D13E641 /* store.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ../core/src/store.cpp; sourceTree = SOURCE_ROOT; };
 		BE40ECFBB45B50CBB7FB3889 /* api.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ../core/src/api.cpp; sourceTree = SOURCE_ROOT; };
 		E96DC8B3664B9C9BCF2671FC /* tools.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ../tools/src/tools.cpp; sourceTree = SOURCE_ROOT; };
@@ -144,6 +150,10 @@
 				B4938CA75DB009429371D332 /* DSTheme.m */,
 				765FF178BA9CB186EE4FC251 /* DSStrings.m */,
 				5BD3CDE4AC44E57601314589 /* DSIcon.m */,
+				A1B2C3D4E5F60718293A4B01 /* DSIconAssets.m */,
+				A1B2C3D4E5F60718293A4B04 /* DSVGIcon.m */,
+				A1B2C3D4E5F60718293A4B03 /* DSIconAssets.h */,
+				A1B2C3D4E5F60718293A4B06 /* DSSVGIcon.h */,
 				EAD190D7CA0E7857F84EE185 /* AppDelegate.h */,
 				E16E143393A71D7E902516B5 /* DSTheme.h */,
 				6F24369D6754E920BB42B91E /* DSStrings.h */,
@@ -335,6 +345,8 @@
 				192E428FD019875C5D2054F2 /* DSTheme.m in Sources */,
 				9EC6E4410A28BA920F06F95A /* DSStrings.m in Sources */,
 				D0D83AABD22CF68964F5290E /* DSIcon.m in Sources */,
+				A1B2C3D4E5F60718293A4B02 /* DSIconAssets.m in Sources */,
+				A1B2C3D4E5F60718293A4B05 /* DSSVGIcon.m in Sources */,
 				01254C7FCCDF46E8356C958C /* store.cpp in Sources */,
 				30B6AF5094CD7D0C3386FE1B /* api.cpp in Sources */,
 				EED3B72F2AC8DD8EBC0AC925 /* tools.cpp in Sources */,

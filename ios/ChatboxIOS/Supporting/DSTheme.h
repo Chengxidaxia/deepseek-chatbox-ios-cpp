@@ -27,9 +27,9 @@ NS_ASSUME_NONNULL_BEGIN
 + (UIColor *)bgActive;      // 浅 rgba(38,49,72,.10) / 深 rgba(255,255,255,.14)
 
 #pragma mark - 文字
-+ (UIColor *)labelPrimary;   // 浅 #0F1115 / 深 #F9FAFB
-+ (UIColor *)labelSecondary; // 浅 #61666B / 深 #CFD3D6
-+ (UIColor *)labelTertiary;  // 浅 #81858C / 深 #ADB2B8
++ (UIColor *)labelPrimary;   // 浅 #0F0F0F / 深 #F9FAFB（官方图标最常用色）
++ (UIColor *)labelSecondary; // 浅 #7D7F85 / 深 #CFD3D6（官方次要用色）
++ (UIColor *)labelTertiary;  // 浅 #8E9094 / 深 #ADB2B8
 + (UIColor *)labelCaption;   // 浅 #ADB2B8 / 深 #81858C
 
 #pragma mark - 描边
@@ -37,10 +37,10 @@ NS_ASSUME_NONNULL_BEGIN
 + (UIColor *)borderL3;  // 浅 rgba(0,0,0,.12) / 深 rgba(255,255,255,.16)
 
 #pragma mark - 品牌与气泡
-+ (UIColor *)brand;       // 浅 #3964FE / 深 #5686FE
++ (UIColor *)brand;       // 浅 #426EFE / 深 #5686FE（官方强调蓝）
 + (UIColor *)userBubble;  // 浅 #EDF3FE / 深 #2C2C2E
 + (UIColor *)toolCardBG;  // 浅 #F9FAFB / 深 #232324
-+ (UIColor *)danger;      // 浅 #EC1313 / 深 #F25A5A
++ (UIColor *)danger;      // 浅 #EF4444 / 深 #F25A5A
 
 #pragma mark - 字体（字号取自 app.css）
 /// 正文 16px、行高 28px

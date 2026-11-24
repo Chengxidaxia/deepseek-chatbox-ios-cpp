@@ -255,8 +255,9 @@
   // 文案取自官方 2.7.1：messageR1Button=深度思考、messageSearchButton=智能搜索；
   // 官方底部工具条的资源名是 chat/bottom_bar/{deep_think,searching,add,voice,send,stop}，
   // 模型选择不在底部，而在顶栏（chat/top_bar/modelChoose），所以这里不再放模型 chip。
-  _thinkChip = [self chipButtonWithTitle:DSStrDeepThink icon:DSIconBrain action:@selector(toggleThinking)];
-  _searchChip = [self chipButtonWithTitle:DSStrSmartSearch icon:DSIconSearch action:@selector(toggleSearch)];
+  // 图标用官方的：深度思考 = toggle_think.json 的双菱形环，智能搜索 = toggle_search.json 的地球
+  _thinkChip = [self chipButtonWithTitle:DSStrDeepThink icon:DSIconThink action:@selector(toggleThinking)];
+  _searchChip = [self chipButtonWithTitle:DSStrSmartSearch icon:DSIconGlobe action:@selector(toggleSearch)];
 
   // ---- 附件条 ----
   _attachStrip = [[DSAttachmentStrip alloc] initWithFrame:CGRectZero];
@@ -409,26 +410,27 @@
 }
 
 /// chips 是「输入框内的小胶囊」：未选中浅灰填充，选中品牌色淡底 + 品牌色字（官方同款）
+/// 尺寸按官方量：图标 16×16（官方 Lottie 的画布就是 16）、胶囊高 30、圆角 15
 - (UIButton *)chipButtonWithTitle:(NSString *)title icon:(DSIconName)icon action:(SEL)action {
   UIButton *b = [UIButton buttonWithType:UIButtonTypeSystem];
   b.translatesAutoresizingMaskIntoConstraints = NO;
   b.titleLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
   b.titleLabel.lineBreakMode = NSLineBreakByTruncatingTail;
   [b setTitle:title forState:UIControlStateNormal];
-  [b setImage:[DSIcon image:icon size:13] forState:UIControlStateNormal];
+  [b setImage:[DSIcon image:icon size:16] forState:UIControlStateNormal];
   // 这三个 inset 在 iOS 15+ 被标了 deprecated，但只在使用 UIButtonConfiguration 时才被忽略；
   // 这里用的是 buttonWithType: 的旧式按钮（configuration 为 nil），inset 仍然生效，
   // 换成 configuration 反而要自己维护 attributedTitle 的字体/配色，不划算。
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-  b.imageEdgeInsets = UIEdgeInsetsMake(0, -3, 0, 3);
-  b.titleEdgeInsets = UIEdgeInsetsMake(0, 3, 0, -3);
-  b.contentEdgeInsets = UIEdgeInsetsMake(0, 8, 0, 8);
+  b.imageEdgeInsets = UIEdgeInsetsMake(0, -4, 0, 4);
+  b.titleEdgeInsets = UIEdgeInsetsMake(0, 4, 0, -4);
+  b.contentEdgeInsets = UIEdgeInsetsMake(0, 10, 0, 10);
 #pragma clang diagnostic pop
-  b.layer.cornerRadius = 13;
+  b.layer.cornerRadius = 15;
   b.layer.cornerCurve = kCACornerCurveContinuous;
   [b addTarget:self action:action forControlEvents:UIControlEventTouchUpInside];
-  [b.heightAnchor constraintEqualToConstant:26].active = YES;
+  [b.heightAnchor constraintEqualToConstant:30].active = YES;
   return b;
 }
 
