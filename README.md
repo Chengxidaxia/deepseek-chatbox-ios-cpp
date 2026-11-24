@@ -70,7 +70,7 @@ ctest --test-dir .build/native --output-on-failure
 
 | 字段 | 含义 |
 |---|---|
-| `build` | 累计编译次数；`Info.plist` 的 `CFBundleVersion` 与 tag 的 `.buildN` 都用它（CI 会注入，文件里的值只是本地构建的默认值） |
+| `build` | 累计编译次数；`Info.plist` 里 `CFBundleVersion = $(CURRENT_PROJECT_VERSION)`、`CFBundleShortVersionString = $(MARKETING_VERSION)`，CI 编译时注入，本地构建用 pbxproj 里的默认值 |
 | `since` | 计数器开始如实记录的时间点 |
 | `history` | 最近 40 条明细；其中 `n: "13~99"` 是占位——旧版本没有计数机制，那段没逐次留档 |
 
