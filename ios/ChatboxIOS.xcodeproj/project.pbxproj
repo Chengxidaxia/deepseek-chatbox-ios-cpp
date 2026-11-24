@@ -27,6 +27,7 @@
 		EED3B72F2AC8DD8EBC0AC925 /* tools.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E96DC8B3664B9C9BCF2671FC /* tools.cpp */; };
 		916F12DABE01913FA5B89866 /* text-tools.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2AB5AEF0F048A3D18809645E /* text-tools.cpp */; };
 		0005545AD033882C0CA9BBF8 /* crypto-tools.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 63518BD37B2EA55481598D66 /* crypto-tools.cpp */; };
+		4283026B3A17D4FC5BDC4735 /* net-tools.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 84D9C7DEE7484A4347B1A59F /* net-tools.cpp */; };
 		D4C7C5980CAD16CF53D1E9CE /* qr-core.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D993B14C1AC082E99518BE47 /* qr-core.cpp */; };
 		B0E577ABEEC621C97E3758CD /* tool_defs.json in Sources */ = {isa = PBXBuildFile; fileRef = D111937D7AB3D73F5BF0C69E /* tool_defs.json */; };
 /* End PBXBuildFile section */
@@ -52,6 +53,7 @@
 		E96DC8B3664B9C9BCF2671FC /* tools.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ../tools/src/tools.cpp; sourceTree = SOURCE_ROOT; };
 		2AB5AEF0F048A3D18809645E /* text-tools.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ../tools/src/text-tools.cpp; sourceTree = SOURCE_ROOT; };
 		63518BD37B2EA55481598D66 /* crypto-tools.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ../tools/src/crypto-tools.cpp; sourceTree = SOURCE_ROOT; };
+		84D9C7DEE7484A4347B1A59F /* net-tools.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ../tools/src/net-tools.cpp; sourceTree = SOURCE_ROOT; };
 		D993B14C1AC082E99518BE47 /* qr-core.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ../tools/src/qr-core.cpp; sourceTree = SOURCE_ROOT; };
 		D111937D7AB3D73F5BF0C69E /* tool_defs.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ../tools/tool_defs.json; sourceTree = SOURCE_ROOT; };
 		41B45F571DF5C5968F31F905 /* DSBoxService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Bridge/DSBoxService.h; sourceTree = SOURCE_ROOT; };
@@ -78,6 +80,7 @@
 		176A377F96737A174648747F /* qr-tables.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ../tools/include/qr-tables.hpp; sourceTree = SOURCE_ROOT; };
 		5CED73DF815D40A3A3257339 /* text-tools.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ../tools/include/text-tools.hpp; sourceTree = SOURCE_ROOT; };
 		1BFAF939F1B4A1B16AF67226 /* crypto-tools.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ../tools/include/crypto-tools.hpp; sourceTree = SOURCE_ROOT; };
+		0CBB69F6643149B6BA78A8D5 /* net-tools.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ../tools/include/net-tools.hpp; sourceTree = SOURCE_ROOT; };
 		CFEE3B3179961C9132A204DA /* json.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ../vendor/json.hpp; sourceTree = SOURCE_ROOT; };
 		373E1CC0AA6896356197EB3A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = ChatboxIOS/Supporting/Info.plist; sourceTree = SOURCE_ROOT; };
 		91282309A9F761CC60469145 /* ChatboxIOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ChatboxIOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -210,6 +213,7 @@
 				E96DC8B3664B9C9BCF2671FC /* tools.cpp */,
 				2AB5AEF0F048A3D18809645E /* text-tools.cpp */,
 				63518BD37B2EA55481598D66 /* crypto-tools.cpp */,
+				84D9C7DEE7484A4347B1A59F /* net-tools.cpp */,
 				D993B14C1AC082E99518BE47 /* qr-core.cpp */,
 				D111937D7AB3D73F5BF0C69E /* tool_defs.json */,
 				24A71DE198F1219E826FADC1 /* include */,
@@ -324,6 +328,7 @@
 				EED3B72F2AC8DD8EBC0AC925 /* tools.cpp in Sources */,
 				916F12DABE01913FA5B89866 /* text-tools.cpp in Sources */,
 				0005545AD033882C0CA9BBF8 /* crypto-tools.cpp in Sources */,
+				4283026B3A17D4FC5BDC4735 /* net-tools.cpp in Sources */,
 				D4C7C5980CAD16CF53D1E9CE /* qr-core.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

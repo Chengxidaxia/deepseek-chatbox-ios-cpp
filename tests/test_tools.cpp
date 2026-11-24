@@ -4,6 +4,16 @@
 #include <iostream>
 #include <fstream>
 
+#if defined(_WIN32)
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#endif
+
 using namespace ds;
 static int failed = 0;
 #define CHECK(cond, msg) do { if (!(cond)) { std::cerr << "FAIL: " << msg << " (line " << __LINE__ << ")\n"; failed++; } else { std::cout << "  ok: " << msg << "\n"; } } while(0)
@@ -339,6 +349,82 @@ int main() {
                                {"input_encoding","hex"},{"key",K128},{"iv",IV16},{"mode","cbc"}});
     CHECK(r.ok && r.text.find("不是合法 UTF-8")!=std::string::npos, "非法 UTF-8 明文有提示: " + r.text);
   }
+  std::cout << "=== 网络 / 系统类工具 ===\n";
+  {
+    auto js = [](const ToolResult& t, const char* k) -> std::string {
+      if (t.data.is_object() && t.data.contains(k) && t.data[k].is_string())
+        return t.data[k].get<std::string>();
+      return "<none>";
+    };
+
+    // dns_lookup：localhost 一定在 hosts 里，不依赖外网
+    auto r = eng.call("dns_lookup", {{"hostname","localhost"}});
+    CHECK(r.ok && r.data.contains("addresses") && r.data["addresses"].is_array() && !r.data["addresses"].empty(),
+          "dns_lookup localhost 有结果: " + r.text);
+    CHECK(r.text.find("IPv4")!=std::string::npos, "dns_lookup 输出含 IPv4 行");
+    r = eng.call("dns_lookup", {{"hostname","localhost"},{"family",4}});
+    CHECK(r.ok, "dns_lookup family=4: " + r.text);
+    {
+      bool onlyV4 = true;
+      for (auto& e : r.data["addresses"]) if (e["family"] != 4) onlyV4 = false;
+      CHECK(onlyV4, "family=4 只返回 IPv4");
+    }
+    r = eng.call("dns_lookup", {{"hostname",""}});
+    CHECK(!r.ok && r.text.find("hostname")!=std::string::npos, "dns_lookup 缺 hostname 报错");
+    r = eng.call("dns_lookup", {{"hostname","this-host-should-not-exist.invalid"}});
+    CHECK(!r.ok && r.text.find("失败")!=std::string::npos, "dns_lookup 不存在的域名报错: " + r.text);
+
+    // port_check：先自己开一个监听端口，验证「可连通」这条分支
+#if defined(_WIN32)
+    WSADATA wsa; WSAStartup(MAKEWORD(2,2), &wsa);
+#endif
+    int lfd = (int)::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    int listenPort = 0;
+    if (lfd >= 0) {
+      sockaddr_in sa;
+      std::memset(&sa, 0, sizeof(sa));
+      sa.sin_family = AF_INET;
+      sa.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+      sa.sin_port = 0;  // 让系统分配
+      if (::bind(lfd, (sockaddr*)&sa, sizeof(sa)) == 0 && ::listen(lfd, 8) == 0) {
+        sockaddr_in got;
+        socklen_t gl = sizeof(got);
+        if (::getsockname(lfd, (sockaddr*)&got, &gl) == 0) listenPort = ntohs(got.sin_port);
+      }
+    }
+    if (listenPort > 0) {
+      r = eng.call("port_check", {{"host","127.0.0.1"},{"port",listenPort},{"timeout_ms",2000}});
+      CHECK(r.ok && r.data["reachable"]==true, "port_check 连上监听端口: " + r.text);
+      CHECK(r.text.find("可连通")!=std::string::npos, "port_check 可连通文案");
+#if defined(_WIN32)
+      ::closesocket(lfd);
+#else
+      ::close(lfd);
+#endif
+      // 端口关掉后再探一次，应报不可达（连接被拒绝）
+      r = eng.call("port_check", {{"host","127.0.0.1"},{"port",listenPort},{"timeout_ms",2000}});
+      CHECK(r.ok && r.data["reachable"]==false, "port_check 端口关闭后不可达: " + r.text);
+    } else {
+      std::cout << "  skip: 本机无法开监听端口，跳过 port_check 正向用例\n";
+    }
+    r = eng.call("port_check", {{"host","127.0.0.1"},{"port",0}});
+    CHECK(!r.ok && r.text.find("1-65535")!=std::string::npos, "port_check 非法端口报错");
+    r = eng.call("port_check", {{"port",80}});
+    CHECK(!r.ok && r.text.find("host")!=std::string::npos, "port_check 缺 host 报错");
+
+    // local_ip：正常机器至少有回环
+    r = eng.call("local_ip", {{}});
+    CHECK(r.ok, "local_ip 返回成功");
+    CHECK(r.data.contains("interfaces") && r.data["interfaces"].is_array(), "local_ip 返回接口数组");
+    CHECK(r.text.find("127.0.0.1")!=std::string::npos, "local_ip 至少列出回环: " + r.text);
+    {
+      bool hasInternalFlag = false;
+      for (auto& e : r.data["interfaces"]) if (e.contains("internal")) hasInternalFlag = true;
+      CHECK(hasInternalFlag, "local_ip 每条带 internal 标记");
+    }
+    (void)js;
+  }
+
   std::cout << "=== 工具搜索 ===\n";
   {
     auto hits = eng.search("计算表达式", 3);

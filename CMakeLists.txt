@@ -44,6 +44,11 @@ target_include_directories(dsbox_tools PUBLIC
 )
 target_link_libraries(dsbox_tools PUBLIC dsbox_core)
 
+# net-tools.cpp 直接用 socket API：iOS 用系统 BSD socket，Windows 本机要额外链 ws2_32 / iphlpapi
+if(WIN32)
+  target_link_libraries(dsbox_tools PUBLIC ws2_32 iphlpapi)
+endif()
+
 # ---------------------------------------------------------------------------
 # 测试程序（本机验证用）
 # ---------------------------------------------------------------------------

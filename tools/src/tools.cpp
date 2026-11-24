@@ -1,6 +1,7 @@
 // 内置工具引擎实现：对照 Web 版 tools-browser.js。
 #include "tools.hpp"
 #include "crypto-tools.hpp"
+#include "net-tools.hpp"
 #include "qr-core.hpp"
 #include "text-tools.hpp"
 #include "util.hpp"
@@ -677,8 +678,11 @@ static ToolResult callImpl(const std::string& name, const json& a, const ToolCon
     for(auto& im:images)r.images.push_back(im.get<std::string>());
     return r;
   }
-  if (name == "web_search" || name == "fetch_url" || name == "http_request" ||
-      name == "dns_lookup" || name == "port_check" || name == "local_ip" || name == "cmd_run") {
+  // --- P2 网络 / 系统类（实现见 tools/src/net-tools.cpp）---
+  if (name == "dns_lookup")    return nettools::dnsLookup(a);
+  if (name == "port_check")    return nettools::portCheck(a);
+  if (name == "local_ip")      return nettools::localIp(a);
+  if (name == "web_search" || name == "fetch_url" || name == "http_request" || name == "cmd_run") {
     return fail("工具「"+name+"」在手机端不可用（联网/系统能力限制）。");
   }
   return fail("未知工具：" + name + "（手机端不可用或已移除）");

@@ -39,6 +39,7 @@ CPP_SOURCES = [
     'tools/src/tools.cpp',
     'tools/src/text-tools.cpp',
     'tools/src/crypto-tools.cpp',
+    'tools/src/net-tools.cpp',
     'tools/src/qr-core.cpp',
 ]
 RESOURCES = [
@@ -126,6 +127,7 @@ def generate():
         'core/include/store.hpp', 'core/include/util.hpp',
         'tools/include/tools.hpp', 'tools/include/qr-core.hpp', 'tools/include/qr-tables.hpp',
         'tools/include/text-tools.hpp', 'tools/include/crypto-tools.hpp',
+        'tools/include/net-tools.hpp',
         'vendor/json.hpp',
     ]
     all_refs = all_sources + RESOURCES + HEADERS + cpp_headers + ['ios/ChatboxIOS/Supporting/Info.plist']
