@@ -13,6 +13,7 @@
 #import "DSTheme.h"
 #import "DSStrings.h"
 #import "DSIcon.h"
+#import "DSButton.h"
 
 @interface DSConversationListController () <UITableViewDataSource, UITableViewDelegate,
     UISearchResultsUpdating>
@@ -414,6 +415,24 @@
   cell.detailTextLabel.text = c[@"preview"];
   cell.detailTextLabel.numberOfLines = 1;
   cell.accessoryType = UITableViewCellAccessoryNone;
+
+  // 官方 SessionListCollectionView.Cell 右侧是常驻的「…」菜单（ic_ellipsis_outline_20）。
+  // 之前我们只做了侧滑操作 —— 没人会想到去侧滑，等于这个入口不存在。
+  // 只建一次，复用 cell 时不再重建；点哪个靠点击位置反查 indexPath，不依赖 tag。
+  if (!cell.accessoryView) {
+    DSButtonConfig *moreCfg = [DSButtonConfig style:DSButtonStylePlain icon:DSIconMore title:nil];
+    moreCfg.iconSize = DSIconPointSizeAction;      // 20
+    moreCfg.minSize = CGSizeMake(36, 44);
+    moreCfg.hPadding = 0;
+    moreCfg.vPadding = 0;
+    moreCfg.cornerRadius = 0;
+    moreCfg.tint = [DSTheme labelTertiary];
+    DSButton *more = [DSButton buttonWithConfig:moreCfg];
+    more.accessibilityLabel = @"更多操作";
+    [more addTarget:self action:@selector(sessionMoreTapped:)
+   forControlEvents:UIControlEventTouchUpInside];
+    cell.accessoryView = more;
+  }
   return cell;
 }
 
@@ -424,6 +443,96 @@
   if (self.onSelectConversation) { self.onSelectConversation(c[@"id"]); return; }
   DSChatViewController *chat = [[DSChatViewController alloc] initWithConversationId:c[@"id"]];
   [self.navigationController pushViewController:chat animated:YES];
+}
+
+#pragma mark - 单条会话的「…」菜单
+
+/// 由点击位置反查行，比给按钮打 tag 可靠 —— cell 复用后 tag 会错位。
+- (void)sessionMoreTapped:(UIButton *)sender {
+  CGPoint p = [sender convertPoint:CGPointZero toView:self.tableView];
+  NSIndexPath *ip = [self.tableView indexPathForRowAtPoint:p];
+  if (!ip || ip.section >= (NSInteger)self.sections.count) return;
+  NSArray *list = self.sections[(NSUInteger)ip.section][@"items"];
+  if (ip.row >= (NSInteger)list.count) return;
+  [self presentMenuForConversation:list[(NSUInteger)ip.row] sourceView:sender];
+}
+
+- (void)presentMenuForConversation:(NSDictionary *)c sourceView:(UIView *)src {
+  BOOL pinned = [c[@"pinned"] boolValue];
+  UIAlertController *sheet = [UIAlertController alertControllerWithTitle:nil
+                                                                message:nil
+                                                         preferredStyle:UIAlertControllerStyleActionSheet];
+  __weak __typeof(self) ws = self;
+
+  [sheet addAction:[UIAlertAction actionWithTitle:(pinned ? DSStrUnpinSession : DSStrPinSession)
+                                            style:UIAlertActionStyleDefault
+                                          handler:^(UIAlertAction *a) {
+    NSError *e = nil;
+    [[DSBoxService shared] updateConversation:c[@"id"] patch:@{@"pinned": @(!pinned)} error:&e];
+    [ws reload];
+  }]];
+
+  [sheet addAction:[UIAlertAction actionWithTitle:DSStrRenameSession
+                                            style:UIAlertActionStyleDefault
+                                          handler:^(UIAlertAction *a) {
+    [ws promptRename:c];
+  }]];
+
+  [sheet addAction:[UIAlertAction actionWithTitle:DSStrDeleteSession
+                                            style:UIAlertActionStyleDestructive
+                                          handler:^(UIAlertAction *a) {
+    [ws confirmDelete:c];
+  }]];
+
+  [sheet addAction:[UIAlertAction actionWithTitle:DSStrCancel
+                                            style:UIAlertActionStyleCancel
+                                          handler:nil]];
+
+  // iPad 上 actionSheet 必须给锚点，否则 present 直接抛异常。
+  sheet.popoverPresentationController.sourceView = src;
+  sheet.popoverPresentationController.sourceRect = src.bounds;
+  [self presentViewController:sheet animated:YES completion:nil];
+}
+
+- (void)promptRename:(NSDictionary *)c {
+  UIAlertController *a = [UIAlertController alertControllerWithTitle:DSStrRenameSessionTitle
+                                                             message:nil
+                                                      preferredStyle:UIAlertControllerStyleAlert];
+  [a addTextFieldWithConfigurationHandler:^(UITextField *tf) {
+    tf.text = [c[@"title"] isKindOfClass:NSString.class] ? c[@"title"] : @"";
+    tf.clearButtonMode = UITextFieldViewModeWhileEditing;
+    tf.returnKeyType = UIReturnKeyDone;
+  }];
+  __weak __typeof(self) ws = self;
+  [a addAction:[UIAlertAction actionWithTitle:DSStrCancel style:UIAlertActionStyleCancel handler:nil]];
+  [a addAction:[UIAlertAction actionWithTitle:DSStrOK style:UIAlertActionStyleDefault handler:^(UIAlertAction *x) {
+    NSString *t = a.textFields.firstObject.text ?: @"";
+    t = [t stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+    if (!t.length) return;                     // 空标题不写库，保持原名
+    NSError *e = nil;
+    [[DSBoxService shared] updateConversation:c[@"id"] patch:@{@"title": t} error:&e];
+    [ws reload];
+  }]];
+  [self presentViewController:a animated:YES completion:nil];
+}
+
+- (void)confirmDelete:(NSDictionary *)c {
+  NSString *msg = [NSString stringWithFormat:@"%@\n%@", DSStrDeleteSessionModal, DSStrDeleteSessionDesc];
+  UIAlertController *a = [UIAlertController alertControllerWithTitle:DSStrDeleteSession
+                                                             message:msg
+                                                      preferredStyle:UIAlertControllerStyleAlert];
+  __weak __typeof(self) ws = self;
+  [a addAction:[UIAlertAction actionWithTitle:DSStrCancel style:UIAlertActionStyleCancel handler:nil]];
+  [a addAction:[UIAlertAction actionWithTitle:DSStrDeleteSession
+                                        style:UIAlertActionStyleDestructive
+                                      handler:^(UIAlertAction *x) {
+    NSError *e = nil;
+    [[DSBoxService shared] deleteConversation:c[@"id"] error:&e];
+    [ws reload];
+    // 删的如果是当前正在看的那条，容器得换一个会话，否则聊天页悬空
+    if (ws.onConversationDeleted) ws.onConversationDeleted(c[@"id"]);
+  }]];
+  [self presentViewController:a animated:YES completion:nil];
 }
 
 - (UISwipeActionsConfiguration *)tableView:(UITableView *)tableView

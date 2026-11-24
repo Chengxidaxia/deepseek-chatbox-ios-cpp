@@ -28,6 +28,10 @@ static const CGFloat kDSContentCorner = 12.0;
 @property (nonatomic, strong) UIView *drawer;
 @property (nonatomic, strong) NSLayoutConstraint *drawerLeading;
 @property (nonatomic, assign) BOOL sidebarOpen;
+/// 抽屉打开时盖在主内容上的「点一下就关」手势。
+/// 光靠最底层 dim 不够：主内容缩放后只露出很窄一圈，用户真正会点的是
+/// 缩小后的那张卡片本身 —— 那里是聊天页，点了只会滚消息，不会关抽屉。
+@property (nonatomic, strong) UITapGestureRecognizer *contentTap;
 @end
 
 @implementation DSRootViewController
@@ -85,6 +89,14 @@ static const CGFloat kDSContentCorner = 12.0;
     [ws closeSidebar];
   };
   _sidebar.onOpenSettings = ^{ [ws presentSettings]; };
+  // 删掉正在看的会话后，聊天页不能停在一条已经不存在的记录上
+  _sidebar.onConversationDeleted = ^(NSString *cid) {
+    if (!ws.chat || ![ws.chat.conversationId isEqualToString:cid]) return;
+    NSArray *all = [[DSBoxService shared] allConversations];
+    NSString *next = all.count ? all.firstObject[@"id"] : nil;
+    if ([next isKindOfClass:NSString.class] && next.length) [ws showConversation:next];
+    else [ws startNewChat];
+  };
   [self addChildViewController:_sidebar];
   _sidebar.view.translatesAutoresizingMaskIntoConstraints = NO;
   [_drawer addSubview:_sidebar.view];
@@ -115,6 +127,12 @@ static const CGFloat kDSContentCorner = 12.0;
     [_sidebar.view.leadingAnchor constraintEqualToAnchor:_drawer.leadingAnchor],
     [_sidebar.view.trailingAnchor constraintEqualToAnchor:_drawer.trailingAnchor],
   ]];
+
+  // 点主内容任意位置关抽屉。默认关闭，只在抽屉打开期间启用 ——
+  // 常开会把聊天页里所有点击（复制、展开工具卡片）全吃掉。
+  _contentTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(closeSidebar)];
+  _contentTap.enabled = NO;
+  [_content addGestureRecognizer:_contentTap];
 
   [self showConversation:[self resolvedInitialConversationId]];
 
@@ -229,6 +247,7 @@ static const CGFloat kDSContentCorner = 12.0;
 - (void)openSidebar {
   if (_sidebarOpen) return;
   _sidebarOpen = YES;
+  _contentTap.enabled = YES;
   [self.view layoutIfNeeded];
   _drawerLeading.constant = 0;
   [self setContentShrunk:YES animated:YES duration:0.32];
@@ -244,6 +263,7 @@ static const CGFloat kDSContentCorner = 12.0;
 - (void)closeSidebar {
   if (!_sidebarOpen) return;
   _sidebarOpen = NO;
+  _contentTap.enabled = NO;
   _drawerLeading.constant = -[self drawerWidth];
   [self setContentShrunk:NO animated:YES duration:0.26];
   [UIView animateWithDuration:0.26

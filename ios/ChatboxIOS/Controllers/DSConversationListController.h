@@ -13,6 +13,9 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, copy, nullable) void (^onSelectConversation)(NSString *convId);
 @property (nonatomic, copy, nullable) void (^onNewChat)(void);
 @property (nonatomic, copy, nullable) void (^onOpenSettings)(void);
+/// 某个会话被删除。删的若是当前正在看的那条，容器需要换一个会话，
+/// 否则聊天页会停在一个已经不存在的会话上。
+@property (nonatomic, copy, nullable) void (^onConversationDeleted)(NSString *convId);
 
 @end
 
