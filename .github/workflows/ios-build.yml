@@ -53,6 +53,25 @@ jobs:
           test -f "$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
           ls "$VCPKG_ROOT/installed/arm64-ios/lib" | head -20
 
+      # 构建号 = 总编译次数，由 CI 算好直接注入 xcodebuild，
+      # 包里的 CFBundleVersion、build-count.json、tag 的 .buildN 三者永远是同一个数。
+      #   分支构建：号 = build + 1（并回写）
+      #   tag 构建：号 = tag 名里的 .buildN（tag 是快照，不再累加）
+      - name: Allocate build number
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF#refs/tags/}" != "$GITHUB_REF" ]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            N="${TAG##*.build}"
+            echo "tag 构建：从 $TAG 取号 $N"
+          else
+            N=$(python3 -c "import json;print(int(json.load(open('build-count.json'))['build'])+1)")
+            echo "分支构建：build+1 = $N"
+          fi
+          case "$N" in ''|*[!0-9]*) echo "::error::构建号解析失败：$N"; exit 1;; esac
+          echo "BUILD_NUMBER=$N" >> "$GITHUB_ENV"
+          echo "本次构建号：$N" | tee -a "$GITHUB_STEP_SUMMARY"
+
       # 用 Ad-Hoc 签名（无开发者账号），生成的 ipa 可 sideload / TestFlight 之外安装。
       - name: Build & Archive (Ad-Hoc)
         env:
@@ -71,6 +90,7 @@ jobs:
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
             -archivePath "$OUT/ChatboxIOS.xcarchive" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
@@ -102,14 +122,19 @@ jobs:
           if-no-files-found: error
 
       # 「编译一次算一次构建」：云编译也计数，成功失败都记。
-      # 提交信息里带 [no count] 时跳过（发版手动定号，不让这次编译再叠一层）。
-      # master 上回写仓库（提交信息带 [skip ci]，不会再触发一轮）；tag 构建是 detached HEAD，只展示不回写。
+      # 分支构建：号已在 Allocate 算好（build+1），这里落盘并回写仓库。
+      # tag 构建：号由 tag 名决定，只展示不回写（tag 是快照，不推进计数器）。
       - name: Record build count
-        if: always() && !contains(github.event.head_commit.message || '', '[no count]')
+        if: always()
         env:
           RESULT: ${{ job.status == 'success' && 'success' || 'failed' }}
         run: |
           set -uo pipefail
+          if [ "${GITHUB_REF#refs/tags/}" != "$GITHUB_REF" ]; then
+            echo "tag 构建：build $BUILD_NUMBER，不推进计数器" | tee -a "$GITHUB_STEP_SUMMARY"
+            python3 scripts/bump-build.py --show | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           python3 scripts/bump-build.py --source ci --ref "$GITHUB_RUN_ID" \
             --result "$RESULT" --note "云编译 $GITHUB_REF_NAME" | tee -a "$GITHUB_STEP_SUMMARY"
           python3 scripts/bump-build.py --show | tee -a "$GITHUB_STEP_SUMMARY"
