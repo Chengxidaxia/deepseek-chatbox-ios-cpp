@@ -14,7 +14,8 @@ OUT="$ROOT/.build/ios"
 mkdir -p "$OUT"
 
 # 确保 vcpkg 依赖已装
-"$VCPKG_ROOT/vcpkg" install curl:arm64-ios openssl:arm64-ios --classic --clean-after-build
+"$VCPKG_ROOT/vcpkg" install curl:arm64-ios openssl:arm64-ios --classic \
+  --overlay-triplets="$ROOT/cmake/triplets" --clean-after-build
 
 xcodebuild -project "$ROOT/ios/ChatboxIOS.xcodeproj" \
   -scheme ChatboxIOS \
