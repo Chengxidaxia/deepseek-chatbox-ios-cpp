@@ -1,0 +1,434 @@
+// !$*UTF8*$!
+{
+  archiveVersion = 1;
+  classes = {
+  };
+  objectVersion = 56;
+  objects = {
+
+/* Begin PBXBuildFile section */
+		3A1DB7795C1B9ED8A68A68F9 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = D2327F1415A8DE72732741F9 /* main.m */; };
+		B3AA01F6F07B18984A24D76C /* AppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = 044F7359BDDE36E8942BEEEA /* AppDelegate.mm */; };
+		090868714411BEC37235BAEE /* DSBoxService.mm in Sources */ = {isa = PBXBuildFile; fileRef = A4FCA6B90AFFC0A051584D6B /* DSBoxService.mm */; };
+		F933470F179A4D7D3EA36005 /* DSConversationListController.mm in Sources */ = {isa = PBXBuildFile; fileRef = B1B4A2F1FAA7E084A8D42890 /* DSConversationListController.mm */; };
+		35430F790DBAD86ACAF4FF0C /* DSChatViewController.mm in Sources */ = {isa = PBXBuildFile; fileRef = 8BF7860CC30E8C11813B8ABE /* DSChatViewController.mm */; };
+		98101C283E5A7FB4CBBAF986 /* DSSettingsViewController.mm in Sources */ = {isa = PBXBuildFile; fileRef = D22662A74F78C19BCD6A066E /* DSSettingsViewController.mm */; };
+		77F7A2C7DB0C61F95DF47327 /* DSMessageCell.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3932A48E3E1B4C27E04C5D4C /* DSMessageCell.mm */; };
+		01254C7FCCDF46E8356C958C /* store.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 94547846DA3EF6DC5D13E641 /* store.cpp */; };
+		30B6AF5094CD7D0C3386FE1B /* api.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE40ECFBB45B50CBB7FB3889 /* api.cpp */; };
+		EED3B72F2AC8DD8EBC0AC925 /* tools.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E96DC8B3664B9C9BCF2671FC /* tools.cpp */; };
+		D4C7C5980CAD16CF53D1E9CE /* qr-core.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D993B14C1AC082E99518BE47 /* qr-core.cpp */; };
+		B0E577ABEEC621C97E3758CD /* tool_defs.json in Sources */ = {isa = PBXBuildFile; fileRef = D111937D7AB3D73F5BF0C69E /* tool_defs.json */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		D2327F1415A8DE72732741F9 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		044F7359BDDE36E8942BEEEA /* AppDelegate.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = AppDelegate.mm; sourceTree = "<group>"; };
+		A4FCA6B90AFFC0A051584D6B /* DSBoxService.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = DSBoxService.mm; sourceTree = "<group>"; };
+		B1B4A2F1FAA7E084A8D42890 /* DSConversationListController.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = DSConversationListController.mm; sourceTree = "<group>"; };
+		8BF7860CC30E8C11813B8ABE /* DSChatViewController.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = DSChatViewController.mm; sourceTree = "<group>"; };
+		D22662A74F78C19BCD6A066E /* DSSettingsViewController.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = DSSettingsViewController.mm; sourceTree = "<group>"; };
+		3932A48E3E1B4C27E04C5D4C /* DSMessageCell.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = DSMessageCell.mm; sourceTree = "<group>"; };
+		94547846DA3EF6DC5D13E641 /* store.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = store.cpp; sourceTree = "<group>"; };
+		BE40ECFBB45B50CBB7FB3889 /* api.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = api.cpp; sourceTree = "<group>"; };
+		E96DC8B3664B9C9BCF2671FC /* tools.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = tools.cpp; sourceTree = "<group>"; };
+		D993B14C1AC082E99518BE47 /* qr-core.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = qr-core.cpp; sourceTree = "<group>"; };
+		D111937D7AB3D73F5BF0C69E /* tool_defs.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = tool_defs.json; sourceTree = "<group>"; };
+		41B45F571DF5C5968F31F905 /* DSBoxService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DSBoxService.h; sourceTree = "<group>"; };
+		EAD190D7CA0E7857F84EE185 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
+		75EA75C8DCD0E64F7C5C4395 /* DSConversationListController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DSConversationListController.h; sourceTree = "<group>"; };
+		6577AB37B4F1D9B514FFF84A /* DSChatViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DSChatViewController.h; sourceTree = "<group>"; };
+		11BB72FDD76081FB1BA40776 /* DSSettingsViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DSSettingsViewController.h; sourceTree = "<group>"; };
+		2E6DCEE2F6C613BF26567F1F /* DSMessageCell.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DSMessageCell.h; sourceTree = "<group>"; };
+		32EE9B0124EFF3CDC1AC2A96 /* api.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = api.hpp; sourceTree = "<group>"; };
+		10F4C167C9CA5B49471428FC /* crypto.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = crypto.hpp; sourceTree = "<group>"; };
+		F5FECC3C864F65065EC2549C /* model.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = model.hpp; sourceTree = "<group>"; };
+		FA6621370A0A5595317A5798 /* store.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = store.hpp; sourceTree = "<group>"; };
+		99D1B0CC6221795F02269D58 /* util.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = util.hpp; sourceTree = "<group>"; };
+		0C8BCACE369D2C30C4D93357 /* tools.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = tools.hpp; sourceTree = "<group>"; };
+		46D01DCDCC79EDE325432415 /* qr-core.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = qr-core.hpp; sourceTree = "<group>"; };
+		176A377F96737A174648747F /* qr-tables.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = qr-tables.hpp; sourceTree = "<group>"; };
+		CFEE3B3179961C9132A204DA /* json.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = json.hpp; sourceTree = "<group>"; };
+		373E1CC0AA6896356197EB3A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		91282309A9F761CC60469145 /* ChatboxIOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ChatboxIOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		E5083CB6491F1F360B3954DE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		9CDBE9FE89C9A11ECB29FDF3 = {
+			isa = PBXGroup;
+			children = (
+				0849AAF91B40A0B307F9A89B /* ChatboxIOS */,
+				75743D94446B87EDB167BAB9 /* core */,
+				E5B05ABD64CD45E68BEDA10E /* tools */,
+				69741CAD848A65E180B3DB3F /* vendor */,
+				7027899BC263CCD08E8A81E9 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		7027899BC263CCD08E8A81E9 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				91282309A9F761CC60469145 /* ChatboxIOS.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		0849AAF91B40A0B307F9A89B /* ChatboxIOS */ = {
+			isa = PBXGroup;
+			children = (
+				9D0EA299CAEA17FE3797C9D5 /* Supporting */,
+				66BDC3AF223CE76C7CB2088E /* Bridge */,
+				4D2FFB6EF039C8AEDC06D9E2 /* Controllers */,
+				9E277AEEC597B890C231A8ED /* Views */,
+				373E1CC0AA6896356197EB3A /* Info.plist */,
+			);
+			path = ChatboxIOS;
+			sourceTree = "<group>";
+		};
+		9D0EA299CAEA17FE3797C9D5 /* Supporting */ = {
+			isa = PBXGroup;
+			children = (
+				D2327F1415A8DE72732741F9 /* main.m */,
+				044F7359BDDE36E8942BEEEA /* AppDelegate.mm */,
+				EAD190D7CA0E7857F84EE185 /* AppDelegate.h */,
+			);
+			path = Supporting;
+			sourceTree = "<group>";
+		};
+		66BDC3AF223CE76C7CB2088E /* Bridge */ = {
+			isa = PBXGroup;
+			children = (
+				A4FCA6B90AFFC0A051584D6B /* DSBoxService.mm */,
+				41B45F571DF5C5968F31F905 /* DSBoxService.h */,
+			);
+			path = Bridge;
+			sourceTree = "<group>";
+		};
+		4D2FFB6EF039C8AEDC06D9E2 /* Controllers */ = {
+			isa = PBXGroup;
+			children = (
+				B1B4A2F1FAA7E084A8D42890 /* DSConversationListController.mm */,
+				8BF7860CC30E8C11813B8ABE /* DSChatViewController.mm */,
+				D22662A74F78C19BCD6A066E /* DSSettingsViewController.mm */,
+				75EA75C8DCD0E64F7C5C4395 /* DSConversationListController.h */,
+				6577AB37B4F1D9B514FFF84A /* DSChatViewController.h */,
+				11BB72FDD76081FB1BA40776 /* DSSettingsViewController.h */,
+			);
+			path = Controllers;
+			sourceTree = "<group>";
+		};
+		9E277AEEC597B890C231A8ED /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				3932A48E3E1B4C27E04C5D4C /* DSMessageCell.mm */,
+				2E6DCEE2F6C613BF26567F1F /* DSMessageCell.h */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		75743D94446B87EDB167BAB9 /* core */ = {
+			isa = PBXGroup;
+			children = (
+				94547846DA3EF6DC5D13E641 /* store.cpp */,
+				BE40ECFBB45B50CBB7FB3889 /* api.cpp */,
+				D8159C5ED8DE3CB5BD676C2A /* include */,
+			);
+			path = core;
+			sourceTree = "<group>";
+		};
+		D8159C5ED8DE3CB5BD676C2A /* include */ = {
+			isa = PBXGroup;
+			children = (
+				32EE9B0124EFF3CDC1AC2A96 /* api.hpp */,
+				10F4C167C9CA5B49471428FC /* crypto.hpp */,
+				F5FECC3C864F65065EC2549C /* model.hpp */,
+				FA6621370A0A5595317A5798 /* store.hpp */,
+				99D1B0CC6221795F02269D58 /* util.hpp */,
+			);
+			path = include;
+			sourceTree = "<group>";
+		};
+		E5B05ABD64CD45E68BEDA10E /* tools */ = {
+			isa = PBXGroup;
+			children = (
+				E96DC8B3664B9C9BCF2671FC /* tools.cpp */,
+				D993B14C1AC082E99518BE47 /* qr-core.cpp */,
+				D111937D7AB3D73F5BF0C69E /* tool_defs.json */,
+				24A71DE198F1219E826FADC1 /* include */,
+			);
+			path = tools;
+			sourceTree = "<group>";
+		};
+		24A71DE198F1219E826FADC1 /* include */ = {
+			isa = PBXGroup;
+			children = (
+				0C8BCACE369D2C30C4D93357 /* tools.hpp */,
+				46D01DCDCC79EDE325432415 /* qr-core.hpp */,
+				176A377F96737A174648747F /* qr-tables.hpp */,
+			);
+			path = include;
+			sourceTree = "<group>";
+		};
+		69741CAD848A65E180B3DB3F /* vendor */ = {
+			isa = PBXGroup;
+			children = (
+				CFEE3B3179961C9132A204DA /* json.hpp */,
+			);
+			path = vendor;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		5E70BA0AB71030BA31878113 /* ChatboxIOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 16F4E806A2838F4ABFAD31C8 /* Build configuration list for PBXNativeTarget "ChatboxIOS" */;
+			buildPhases = (
+				9ECE7FE5E31D3FA745D87FD2 /* Sources */,
+				E5083CB6491F1F360B3954DE /* Frameworks */,
+				2887BC64190544993046E5FE /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ChatboxIOS;
+			productName = ChatboxIOS;
+			productReference = 91282309A9F761CC60469145 /* ChatboxIOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		16EEAF57BAFC2A41CAB7C99A /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					5E70BA0AB71030BA31878113 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = BDB3AD46FB5D70427C76A6E6 /* Build configuration list for PBXProject "ChatboxIOS" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = zh_CN;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+				zh_CN,
+			);
+			mainGroup = 9CDBE9FE89C9A11ECB29FDF3;
+			productRefGroup = 7027899BC263CCD08E8A81E9 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				5E70BA0AB71030BA31878113 /* ChatboxIOS */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		2887BC64190544993046E5FE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B0E577ABEEC621C97E3758CD /* tool_defs.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		9ECE7FE5E31D3FA745D87FD2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3A1DB7795C1B9ED8A68A68F9 /* main.m in Sources */,
+				B3AA01F6F07B18984A24D76C /* AppDelegate.mm in Sources */,
+				090868714411BEC37235BAEE /* DSBoxService.mm in Sources */,
+				F933470F179A4D7D3EA36005 /* DSConversationListController.mm in Sources */,
+				35430F790DBAD86ACAF4FF0C /* DSChatViewController.mm in Sources */,
+				98101C283E5A7FB4CBBAF986 /* DSSettingsViewController.mm in Sources */,
+				77F7A2C7DB0C61F95DF47327 /* DSMessageCell.mm in Sources */,
+				01254C7FCCDF46E8356C958C /* store.cpp in Sources */,
+				30B6AF5094CD7D0C3386FE1B /* api.cpp in Sources */,
+				EED3B72F2AC8DD8EBC0AC925 /* tools.cpp in Sources */,
+				D4C7C5980CAD16CF53D1E9CE /* qr-core.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		5087F07B936EA5064DCE03C8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = c11;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+			};
+			name = Debug;
+		};
+		D7A0A16F4227E7A0FFA54547 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				GCC_C_LANGUAGE_STANDARD = c11;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		54301522AF9B75FD3927E0E3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 87;
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/../core/include",
+					"$(SRCROOT)/../tools/include",
+					"$(SRCROOT)/../vendor",
+					"$(SRCROOT)/../ios/ChatboxIOS/Bridge",
+					"$(SRCROOT)/../ios/ChatboxIOS/Controllers",
+					"$(SRCROOT)/../ios/ChatboxIOS/Views",
+					"$(SRCROOT)/../ios/ChatboxIOS/Supporting",
+					"$(VCPKG_INSTALLED)/include",
+				);
+				INFOPLIST_FILE = ChatboxIOS/Supporting/Info.plist;
+				LIBRARY_SEARCH_PATHS = (
+					"$(VCPKG_INSTALLED)/lib",
+				);
+				OTHER_LDFLAGS = (
+					"-lcurl",
+					"-lssl",
+					"-lcrypto",
+					"-lz",
+					"-lsqlite3",
+				);
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.12.4;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dsbox.chatbox;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		00BC52126A0203B75E69C3A0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 87;
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/../core/include",
+					"$(SRCROOT)/../tools/include",
+					"$(SRCROOT)/../vendor",
+					"$(SRCROOT)/../ios/ChatboxIOS/Bridge",
+					"$(SRCROOT)/../ios/ChatboxIOS/Controllers",
+					"$(SRCROOT)/../ios/ChatboxIOS/Views",
+					"$(SRCROOT)/../ios/ChatboxIOS/Supporting",
+					"$(VCPKG_INSTALLED)/include",
+				);
+				INFOPLIST_FILE = ChatboxIOS/Supporting/Info.plist;
+				LIBRARY_SEARCH_PATHS = (
+					"$(VCPKG_INSTALLED)/lib",
+				);
+				OTHER_LDFLAGS = (
+					"-lcurl",
+					"-lssl",
+					"-lcrypto",
+					"-lz",
+					"-lsqlite3",
+				);
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.12.4;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dsbox.chatbox;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		BDB3AD46FB5D70427C76A6E6 /* Build configuration list for PBXProject "ChatboxIOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5087F07B936EA5064DCE03C8 /* Debug */,
+				D7A0A16F4227E7A0FFA54547 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		16F4E806A2838F4ABFAD31C8 /* Build configuration list for PBXNativeTarget "ChatboxIOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				54301522AF9B75FD3927E0E3 /* Debug */,
+				00BC52126A0203B75E69C3A0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 16EEAF57BAFC2A41CAB7C99A /* Project object */;
+}

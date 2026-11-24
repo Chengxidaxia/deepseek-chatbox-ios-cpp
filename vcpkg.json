@@ -1,0 +1,9 @@
+{
+  "name": "dsbox-ios",
+  "version-string": "1.12.4",
+  "description": "DeepSeek ChatBox iOS - C++ core dependencies (curl + openssl; SQLite/zlib use iOS system libs)",
+  "dependencies": [
+    "curl",
+    "openssl"
+  ]
+}

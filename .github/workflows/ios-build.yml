@@ -1,0 +1,97 @@
+name: iOS Build
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14          # Apple Silicon，arm64-ios triplet 原生编译
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # vcpkg：用官方仓库的 arm64-ios triplet 编 curl/openssl 静态库。
+      # 不用 manifest baseline，classic 模式避免伪造 baseline 哈希。
+      - name: Bootstrap vcpkg
+        run: |
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git "$RUNNER_TEMP/vcpkg"
+          "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+          echo "VCPKG_ROOT=$RUNNER_TEMP/vcpkg" >> "$GITHUB_ENV"
+
+      - name: Install curl + openssl for iOS
+        run: |
+          "$VCPKG_ROOT/vcpkg" install curl:arm64-ios openssl:arm64-ios --clean-after-build
+
+      - name: Show vcpkg toolchain
+        run: |
+          test -f "$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+          ls "$VCPKG_ROOT/installed/arm64-ios/lib" | head -20
+
+      # 用 Ad-Hoc 签名（无开发者账号），生成的 ipa 可 sideload / TestFlight 之外安装。
+      - name: Build & Archive (Ad-Hoc)
+        env:
+          VCPKG_INSTALLED: ${{ runner.temp }}/vcpkg/installed/arm64-ios
+        run: |
+          set -euo pipefail
+          PROJ="$GITHUB_WORKSPACE/ios/ChatboxIOS.xcodeproj"
+          OUT="$GITHUB_WORKSPACE/.build/ios"
+          mkdir -p "$OUT"
+
+          # pbxproj 里已用 $(VCPKG_INSTALLED)/include 与 /lib，
+          # 这里只需把环境变量传进来；Foundation/UIKit 由 Xcode 自动链接。
+          xcodebuild -project "$PROJ" \
+            -scheme ChatboxIOS \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$OUT/ChatboxIOS.xcarchive" \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=YES \
+            archive 2>&1 | tee "$OUT/archive.log"
+
+      - name: Export .ipa
+        run: |
+          set -euo pipefail
+          OUT="$GITHUB_WORKSPACE/.build/ios"
+          cat > "$OUT/ExportOptions.plist" <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>ad-hoc</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>stripSwiftSymbols</key><true/>
+            <key>uploadSymbols</key><false/>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild -exportArchive \
+            -archivePath "$OUT/ChatboxIOS.xcarchive" \
+            -exportOptionsPlist "$OUT/ExportOptions.plist" \
+            -exportPath "$OUT/ipa" 2>&1 | tee "$OUT/export.log"
+          ls -la "$OUT/ipa"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChatboxIOS-adhoc
+          path: .build/ios/ipa/*.ipa
+          if-no-files-found: error
+
+      # tag 推送时，把 ipa 挂到同名 Release（若 GitHub 已有该 tag 的 Release）
+      - name: Attach ipa to Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF#refs/tags/}"
+          for ipa in .build/ios/ipa/*.ipa; do
+            gh release upload "$TAG" "$ipa" --clobber || \
+              echo "::warning::Release $TAG 不存在或上传失败，ipa 仍保留在 artifact"
+          done
