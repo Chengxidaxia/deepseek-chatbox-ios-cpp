@@ -4,6 +4,9 @@
 #include <iostream>
 #include <fstream>
 
+#include <atomic>
+#include <thread>
+
 #if defined(_WIN32)
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -17,6 +20,87 @@
 using namespace ds;
 static int failed = 0;
 #define CHECK(cond, msg) do { if (!(cond)) { std::cerr << "FAIL: " << msg << " (line " << __LINE__ << ")\n"; failed++; } else { std::cout << "  ok: " << msg << "\n"; } } while(0)
+
+
+// 极简 HTTP/1.1 服务：只为测 fetch_url / http_request。
+// assertPublicUrl 明确放行 127.0.0.1，所以用本机回环做桩，测试不依赖外网。
+struct LocalServer {
+  int fd = -1;
+  int port = 0;
+  std::thread th;
+  std::atomic<bool> stopFlag{false};
+  std::string body;
+  std::string contentType;
+
+  static void closeFd(int c) {
+#if defined(_WIN32)
+    ::closesocket((SOCKET)c);
+#else
+    ::close(c);
+#endif
+  }
+
+  bool start(const std::string& b, const std::string& ct) {
+    body = b;
+    contentType = ct;
+#if defined(_WIN32)
+    WSADATA w;
+    WSAStartup(MAKEWORD(2, 2), &w);
+#endif
+    fd = (int)::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (fd < 0) return false;
+    int one = 1;
+    ::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (const char*)&one, sizeof(one));
+    sockaddr_in sa;
+    std::memset(&sa, 0, sizeof(sa));
+    sa.sin_family = AF_INET;
+    sa.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    sa.sin_port = 0;
+    if (::bind(fd, (sockaddr*)&sa, sizeof(sa)) != 0) return false;
+    if (::listen(fd, 8) != 0) return false;
+    sockaddr_in got;
+    socklen_t gl = sizeof(got);
+    if (::getsockname(fd, (sockaddr*)&got, &gl) != 0) return false;
+    port = ntohs(got.sin_port);
+    th = std::thread([this] { loop(); });
+    return true;
+  }
+
+  void loop() {
+    while (!stopFlag.load()) {
+      fd_set rfds;
+      FD_ZERO(&rfds);
+      FD_SET(fd, &rfds);
+      timeval tv;
+      tv.tv_sec = 0;
+      tv.tv_usec = 100 * 1000;
+      const int sr = ::select(fd + 1, &rfds, nullptr, nullptr, &tv);
+      if (sr <= 0) continue;
+      sockaddr_in cl;
+      socklen_t cll = sizeof(cl);
+      const int c = (int)::accept(fd, (sockaddr*)&cl, &cll);
+      if (c < 0) continue;
+      std::string req;
+      char buf[1024];
+      while (req.find("\r\n\r\n") == std::string::npos && req.size() < 65536) {
+        const int n = (int)::recv(c, buf, sizeof(buf), 0);
+        if (n <= 0) break;
+        req.append(buf, (size_t)n);
+      }
+      const std::string resp = "HTTP/1.1 200 OK\r\nContent-Type: " + contentType +
+                               "\r\nContent-Length: " + std::to_string(body.size()) +
+                               "\r\nConnection: close\r\n\r\n" + body;
+      ::send(c, resp.data(), (int)resp.size(), 0);
+      closeFd(c);
+    }
+  }
+
+  void stop() {
+    stopFlag = true;
+    if (th.joinable()) th.join();
+    if (fd >= 0) { closeFd(fd); fd = -1; }
+  }
+};
 
 int main() {
   std::cout.setf(std::ios::unitbuf);
@@ -423,6 +507,170 @@ int main() {
       CHECK(hasInternalFlag, "local_ip 每条带 internal 标记");
     }
     (void)js;
+  }
+
+  std::cout << "=== 联网类工具（本机回环桩） ===\n";
+  {
+    // ---- fetch_url：HTML 正文提取 ----
+    const std::string html =
+        "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\"><title>测试页面标题</title>"
+        "<style>body{color:#000}</style><script>window.x=1;</script></head><body>"
+        "<div class=\"top-nav\"><a href=\"/a\">首页</a> | <a href=\"/b\">新闻</a> | <a href=\"/c\">体育</a>"
+        " | <a href=\"/d\">财经</a> | <a href=\"/e\">娱乐</a></div>"
+        "<header><h1>主标题</h1></header><article>"
+        "<h2>第一节</h2><p>这是第一段正文，包含实体 &amp; &lt;tag&gt; &quot;引号&quot; 和 &nbsp;空格。</p>"
+        "<p>第二段：数字 12345 与符号 ★。</p>"
+        "<ul><li>列表项一</li><li>列表项二</li><li>列表项三</li></ul>"
+        "<blockquote>引用内容</blockquote><pre>code block\nline two</pre>"
+        "<h3>小节</h3><p>结尾段落。<br>换行后继续。</p></article>"
+        "<footer class=\"site-footer\">版权所有 © 2026</footer>"
+        "<aside class=\"sidebar\">侧栏广告</aside></body></html>";
+
+    LocalServer srv;
+    if (!srv.start(html, "text/html; charset=utf-8")) {
+      std::cout << "  skip: 无法启动本地 HTTP 桩\n";
+    } else {
+      const std::string base = "http://127.0.0.1:" + std::to_string(srv.port);
+      auto r = eng.call("fetch_url", {{"url", base + "/page.html"}});
+      CHECK(r.ok, "fetch_url 成功: " + r.text.substr(0, 80));
+      CHECK(r.data["title"]=="测试页面标题", "fetch_url 提取标题: " + r.data["title"].dump());
+      const std::string t = r.text;
+      CHECK(t.find("# 主标题")!=std::string::npos, "HTML→文本：h1 变 # 标题");
+      CHECK(t.find("## 第一节")!=std::string::npos, "HTML→文本：h2 变 ## 标题");
+      CHECK(t.find("包含实体 & <tag> \"引号\" 和 空格。")!=std::string::npos, "HTML→文本：实体解码 + 空白压缩");
+      CHECK(t.find("- 列表项一")!=std::string::npos, "HTML→文本：li 变 - 列表项");
+      CHECK(t.find("code block\nline two")!=std::string::npos, "HTML→文本：pre 保留换行");
+      CHECK(t.find("换行后继续")!=std::string::npos, "HTML→文本：br 变换行");
+      CHECK(t.find("window.x")==std::string::npos, "HTML→文本：script 整块被剥掉");
+      CHECK(t.find("color:#000")==std::string::npos, "HTML→文本：style 整块被剥掉");
+      CHECK(t.find("版权所有")==std::string::npos, "HTML→文本：footer 被剥掉");
+      CHECK(t.find("侧栏广告")==std::string::npos, "HTML→文本：aside 被剥掉");
+      CHECK(t.find("首页")==std::string::npos, "HTML→文本：class=top-nav 导航被剥掉");
+      std::cout << "  ---- 提取结果 ----\n" << r.text << "\n  ------------------\n";
+
+      // 截断：max_chars 下限是 500（与 Web 版一致），所以换一个长页面来验
+      std::string longHtml = "<html><head><title>长文</title></head><body><article><p>";
+      for (int i = 0; i < 80; i++) longHtml += "这是一段用于测试截断的正文内容，编号 " + std::to_string(i) + "。";
+      longHtml += "</p></article></body></html>";
+      LocalServer srvLong;
+      if (srvLong.start(longHtml, "text/html; charset=utf-8")) {
+        auto r2 = eng.call("fetch_url", {{"url","http://127.0.0.1:" + std::to_string(srvLong.port) + "/long.html"},
+                                        {"max_chars",500}});
+        CHECK(r2.ok && r2.data["truncated"]==true, "fetch_url max_chars 触发截断");
+        CHECK(r2.text.find("已截断到前 500 字")!=std::string::npos, "fetch_url 截断提示");
+        srvLong.stop();
+      }
+
+      // 安全：本机/保留地址被拦
+      auto r3 = eng.call("fetch_url", {{"url","http://localhost/x"}});
+      CHECK(!r3.ok && r3.text.find("只允许抓取公网地址")!=std::string::npos, "fetch_url 拦 localhost");
+      r3 = eng.call("fetch_url", {{"url","http://169.254.169.254/latest"}});
+      CHECK(!r3.ok && r3.text.find("只允许抓取公网地址")!=std::string::npos, "fetch_url 拦云元数据地址");
+      r3 = eng.call("fetch_url", {{"url","ftp://example.com/x"}});
+      CHECK(!r3.ok && r3.text.find("只支持 http / https")!=std::string::npos, "fetch_url 拦非 http 协议");
+      r3 = eng.call("fetch_url", {{"url",""}});
+      CHECK(!r3.ok && r3.text.find("缺少 url")!=std::string::npos, "fetch_url 缺 url 报错");
+
+      // 二进制类型直接拒绝
+      LocalServer srvPdf;
+      if (srvPdf.start("%PDF-1.4 fake", "application/pdf")) {
+        auto r4 = eng.call("fetch_url", {{"url","http://127.0.0.1:" + std::to_string(srvPdf.port) + "/a.pdf"}});
+        CHECK(!r4.ok && r4.text.find("不是网页正文")!=std::string::npos, "fetch_url 拒绝二进制正文");
+        srvPdf.stop();
+      }
+
+      // ---- http_request ----
+      LocalServer srvJson;
+      if (srvJson.start("{\"b\":1,\"a\":[2,3]}", "application/json")) {
+        const std::string jbase = "http://127.0.0.1:" + std::to_string(srvJson.port);
+        auto rj = eng.call("http_request", {{"url", jbase + "/api"}});
+        CHECK(rj.ok && rj.data["status"]==200, "http_request 状态码 200");
+        CHECK(rj.text.find("状态：200 OK")!=std::string::npos, "http_request 输出状态行: " + rj.text.substr(0,60));
+        CHECK(rj.text.find("\"b\": 1")!=std::string::npos, "http_request JSON 美化（2 空格缩进）");
+        CHECK(rj.text.find("content-type")!=std::string::npos ||
+              rj.text.find("Content-Type")!=std::string::npos, "http_request 输出响应头");
+        // 键顺序保持（ordered_json），b 在 a 之前
+        const size_t pb = rj.text.find("\"b\"");
+        const size_t pa = rj.text.find("\"a\"");
+        CHECK(pb != std::string::npos && pa != std::string::npos && pb < pa, "http_request 保留 JSON 键顺序");
+        auto rb = eng.call("http_request", {{"url", jbase + "/api"},{"method","TRACE"}});
+        CHECK(!rb.ok && rb.text.find("不支持的方法")!=std::string::npos, "http_request 拦非法方法");
+        srvJson.stop();
+      }
+      srv.stop();
+    }
+
+    // 与 Web 版 htmlToText 逐字节对齐的黄金样例：期望值由
+    // `node -e "require('./server/tools-core.cjs')._internals.htmlToText(html)"` 现算。
+    const std::string hardHtml = R"HTML(<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>某新闻标题 - 某站</title>
+<style>.a{}</style><script>var t=1;</script></head>
+<body class="page">
+<div id="header"><div class="logo">某站</div>
+  <ul class="menu"><li><a href="/">首页</a></li><li><a href="/n">新闻</a></li><li><a href="/s">体育</a></li><li><a href="/f">财经</a></li><li><a href="/y">娱乐</a></li><li><a href="/t">科技</a></li></ul>
+</div>
+<div class="main-content">
+  <h1>某新闻标题</h1>
+  <div class="article-meta">发布时间：2026-11-24 10:00 来源：某社</div>
+  <div class="article-body">
+    <p>第一段：这是新闻正文的第一段，讲了事情的起因。</p>
+    <p>第二段：这里包含一个 <a href="/x">链接</a> 和 <strong>加粗</strong> 文字。</p>
+    <div class="advert">广告位招租</div>
+    <p>第三段：表格数据如下。</p>
+    <table><tr><th>名称</th><th>数量</th></tr><tr><td>苹果</td><td>10</td></tr><tr><td>香蕉</td><td>20</td></tr></table>
+    <p>第四段：结尾。</p>
+  </div>
+  <div class="related-news"><h3>相关阅读</h3><ul><li>链接一</li><li>链接二</li></ul></div>
+</div>
+<div class="sidebar"><div class="share">分享到微信</div></div>
+<div id="footer">© 2026 某站 版权所有</div>
+</body></html>)HTML";
+    const std::string hardExpect = R"TXT(某站
+
+# 某新闻标题
+
+发布时间：2026-11-24 10:00 来源：某社
+
+第一段：这是新闻正文的第一段，讲了事情的起因。
+
+第二段：这里包含一个 链接 和 加粗 文字。
+
+第三段：表格数据如下。
+
+名称 数量
+苹果 10
+香蕉 20
+
+第四段：结尾。)TXT";
+    LocalServer srvHard;
+    if (srvHard.start(hardHtml, "text/html; charset=utf-8")) {
+      auto rh = eng.call("fetch_url", {{"url","http://127.0.0.1:" + std::to_string(srvHard.port) + "/h.html"}});
+      CHECK(rh.ok, "复杂页面抓取成功");
+      std::string got = rh.text;
+      const size_t sep = got.find("\n\n");
+      if (sep != std::string::npos) got = got.substr(sep + 2);
+      CHECK(got == hardExpect, "HTML 正文提取与 Web 版逐字节一致");
+      if (got != hardExpect) {
+        std::cout << "  --- got ---" << std::endl << got << std::endl
+                  << "  --- expect ---" << std::endl << hardExpect << std::endl;
+      }
+      srvHard.stop();
+    }
+
+      // GBK 页面：content-type 不带 charset，靠 <meta charset="gbk"> 嗅探 + iconv 转码
+      const std::string gbkPage = "\x3c" "\x68" "\x74" "\x6d" "\x6c" "\x3e" "\x3c" "\x68" "\x65" "\x61" "\x64" "\x3e" "\x3c" "\x6d" "\x65" "\x74" "\x61" "\x20" "\x63" "\x68" "\x61" "\x72" "\x73" "\x65" "\x74" "\x3d" "\x22" "\x67" "\x62" "\x6b" "\x22" "\x3e" "\x3c" "\x2f" "\x68" "\x65" "\x61" "\x64" "\x3e" "\x3c" "\x62" "\x6f" "\x64" "\x79" "\x3e" "\x3c" "\x70" "\x3e" "\xd6" "\xd0" "\xce" "\xc4" "\xd5" "\xfd" "\xce" "\xc4" "\xb2" "\xe2" "\xca" "\xd4" "\x3c" "\x2f" "\x70" "\x3e" "\x3c" "\x2f" "\x62" "\x6f" "\x64" "\x79" "\x3e" "\x3c" "\x2f" "\x68" "\x74" "\x6d" "\x6c" "\x3e";
+      LocalServer srvGbk;
+      if (srvGbk.start(gbkPage, "text/html")) {
+        auto rg = eng.call("fetch_url", {{"url","http://127.0.0.1:" + std::to_string(srvGbk.port) + "/gbk.html"}});
+        CHECK(rg.ok, "GBK 页面抓取成功");
+        CHECK(rg.text.find("中文正文测试")!=std::string::npos, "GBK 正文按 iconv 正确转成 UTF-8");
+        CHECK(rg.text.find("编码：gbk")!=std::string::npos, "fetch_url 标注页面编码");
+        srvGbk.stop();
+      }
+
+    // ---- web_search：无网络也能验的失败分支 ----
+    auto ws = eng.call("web_search", {{"query",""}});
+    CHECK(!ws.ok && ws.text.find("缺少 query")!=std::string::npos, "web_search 缺 query 报错");
   }
 
   std::cout << "=== 工具搜索 ===\n";

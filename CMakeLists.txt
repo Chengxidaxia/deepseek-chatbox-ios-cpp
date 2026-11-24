@@ -14,6 +14,7 @@ if(NOT IOS)
   find_package(OpenSSL REQUIRED)
   find_package(SQLite3 REQUIRED)
   find_package(ZLIB REQUIRED)
+  find_package(Iconv)
 endif()
 
 # ---------------------------------------------------------------------------
@@ -47,6 +48,14 @@ target_link_libraries(dsbox_tools PUBLIC dsbox_core)
 # net-tools.cpp 直接用 socket API：iOS 用系统 BSD socket，Windows 本机要额外链 ws2_32 / iphlpapi
 if(WIN32)
   target_link_libraries(dsbox_tools PUBLIC ws2_32 iphlpapi)
+endif()
+
+# web-tools.cpp 用 libcurl 抓网页 + iconv 转 GBK/Big5 正文
+if(NOT IOS)
+  target_link_libraries(dsbox_tools PUBLIC CURL::libcurl)
+  if(Iconv_FOUND)
+    target_link_libraries(dsbox_tools PUBLIC Iconv::Iconv)
+  endif()
 endif()
 
 # ---------------------------------------------------------------------------

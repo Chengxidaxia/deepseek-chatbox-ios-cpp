@@ -2,6 +2,7 @@
 #include "tools.hpp"
 #include "crypto-tools.hpp"
 #include "net-tools.hpp"
+#include "web-tools.hpp"
 #include "qr-core.hpp"
 #include "text-tools.hpp"
 #include "util.hpp"
@@ -682,8 +683,11 @@ static ToolResult callImpl(const std::string& name, const json& a, const ToolCon
   if (name == "dns_lookup")    return nettools::dnsLookup(a);
   if (name == "port_check")    return nettools::portCheck(a);
   if (name == "local_ip")      return nettools::localIp(a);
-  if (name == "web_search" || name == "fetch_url" || name == "http_request" || name == "cmd_run") {
-    return fail("工具「"+name+"」在手机端不可用（联网/系统能力限制）。");
+  if (name == "http_request")  return webtools::httpRequest(a);
+  if (name == "fetch_url")     return webtools::fetchUrl(a);
+  if (name == "web_search")    return webtools::webSearch(a);
+  if (name == "cmd_run") {
+    return fail("工具「cmd_run」在手机端不可用（iOS 沙箱禁止 fork/exec 任意可执行文件）。");
   }
   return fail("未知工具：" + name + "（手机端不可用或已移除）");
 }

@@ -40,6 +40,7 @@ CPP_SOURCES = [
     'tools/src/text-tools.cpp',
     'tools/src/crypto-tools.cpp',
     'tools/src/net-tools.cpp',
+    'tools/src/web-tools.cpp',
     'tools/src/qr-core.cpp',
 ]
 RESOURCES = [
@@ -128,6 +129,7 @@ def generate():
         'tools/include/tools.hpp', 'tools/include/qr-core.hpp', 'tools/include/qr-tables.hpp',
         'tools/include/text-tools.hpp', 'tools/include/crypto-tools.hpp',
         'tools/include/net-tools.hpp',
+        'tools/include/web-tools.hpp',
         'vendor/json.hpp',
     ]
     all_refs = all_sources + RESOURCES + HEADERS + cpp_headers + ['ios/ChatboxIOS/Supporting/Info.plist']
@@ -417,6 +419,7 @@ def generate():
 \t\t\t\t\t"-lcrypto",
 \t\t\t\t\t"-lz",
 \t\t\t\t\t"-lsqlite3",
+\t\t\t\t\t"-liconv",
 \t\t\t\t\t"-framework",
 \t\t\t\t\tAVFoundation,
 \t\t\t\t\t"-framework",
@@ -471,6 +474,7 @@ def generate():
 \t\t\t\t\t"-lcrypto",
 \t\t\t\t\t"-lz",
 \t\t\t\t\t"-lsqlite3",
+\t\t\t\t\t"-liconv",
 \t\t\t\t\t"-framework",
 \t\t\t\t\tAVFoundation,
 \t\t\t\t\t"-framework",
