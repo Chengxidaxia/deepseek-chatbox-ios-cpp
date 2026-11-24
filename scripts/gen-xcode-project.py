@@ -109,7 +109,7 @@ def generate():
     for p in all_refs:
         name = pathlib.Path(p).name
         refs.append(f'\t\t{file_ref(p)} /* {name} */ = {{isa = PBXFileReference; lastKnownFileType = '
-                    + file_type(p) + f'; path = {name}; sourceTree = "<group>"; }};')
+                    + file_type(p) + f'; path = {p}; sourceTree = SOURCE_ROOT; }};')
     refs.append(f'\t\t{PRODUCT} /* ChatboxIOS.app */ = {{isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ChatboxIOS.app; sourceTree = BUILT_PRODUCTS_DIR; }};')
 
     out = f'''// !$*UTF8*$!
@@ -168,7 +168,7 @@ def generate():
 \t\t\t\t{GROUP_VIEWS} /* Views */,
 \t\t\t\t{file_ref('ios/ChatboxIOS/Supporting/Info.plist')} /* Info.plist */,
 \t\t\t);
-\t\t\tpath = ChatboxIOS;
+\t\t\tname = ChatboxIOS;
 \t\t\tsourceTree = "<group>";
 \t\t}};
 \t\t{GROUP_SUPPORTING} /* Supporting */ = {{
@@ -176,7 +176,7 @@ def generate():
 \t\t\tchildren = (
 {group_entries([p for p in OBJC_SOURCES if 'Supporting' in p] + [p for p in HEADERS if 'Supporting' in p])}
 \t\t\t);
-\t\t\tpath = Supporting;
+\t\t\tname = Supporting;
 \t\t\tsourceTree = "<group>";
 \t\t}};
 \t\t{GROUP_BRIDGE} /* Bridge */ = {{
@@ -184,7 +184,7 @@ def generate():
 \t\t\tchildren = (
 {group_entries([p for p in OBJC_SOURCES if 'Bridge' in p] + [p for p in HEADERS if 'Bridge' in p])}
 \t\t\t);
-\t\t\tpath = Bridge;
+\t\t\tname = Bridge;
 \t\t\tsourceTree = "<group>";
 \t\t}};
 \t\t{GROUP_CONTROLLERS} /* Controllers */ = {{
@@ -192,7 +192,7 @@ def generate():
 \t\t\tchildren = (
 {group_entries([p for p in OBJC_SOURCES if 'Controllers' in p] + [p for p in HEADERS if 'Controllers' in p])}
 \t\t\t);
-\t\t\tpath = Controllers;
+\t\t\tname = Controllers;
 \t\t\tsourceTree = "<group>";
 \t\t}};
 \t\t{GROUP_VIEWS} /* Views */ = {{
@@ -200,7 +200,7 @@ def generate():
 \t\t\tchildren = (
 {group_entries([p for p in OBJC_SOURCES if 'Views' in p] + [p for p in HEADERS if 'Views' in p])}
 \t\t\t);
-\t\t\tpath = Views;
+\t\t\tname = Views;
 \t\t\tsourceTree = "<group>";
 \t\t}};
 \t\t{GROUP_CORE} /* core */ = {{
@@ -209,7 +209,7 @@ def generate():
 {group_entries([p for p in CPP_SOURCES if p.startswith('core/')])}
 \t\t\t\t{oid('DIR:core/include')} /* include */,
 \t\t\t);
-\t\t\tpath = core;
+\t\t\tname = core;
 \t\t\tsourceTree = "<group>";
 \t\t}};
 \t\t{oid('DIR:core/include')} /* include */ = {{
@@ -217,7 +217,7 @@ def generate():
 \t\t\tchildren = (
 {group_entries(['core/include/api.hpp','core/include/crypto.hpp','core/include/model.hpp','core/include/store.hpp','core/include/util.hpp'])}
 \t\t\t);
-\t\t\tpath = include;
+\t\t\tname = include;
 \t\t\tsourceTree = "<group>";
 \t\t}};
 \t\t{GROUP_TOOLS} /* tools */ = {{
@@ -226,7 +226,7 @@ def generate():
 {group_entries([p for p in CPP_SOURCES if p.startswith('tools/src/')] + RESOURCES)}
 \t\t\t\t{oid('DIR:tools/include')} /* include */,
 \t\t\t);
-\t\t\tpath = tools;
+\t\t\tname = tools;
 \t\t\tsourceTree = "<group>";
 \t\t}};
 \t\t{oid('DIR:tools/include')} /* include */ = {{
@@ -234,7 +234,7 @@ def generate():
 \t\t\tchildren = (
 {group_entries(['tools/include/tools.hpp','tools/include/qr-core.hpp','tools/include/qr-tables.hpp'])}
 \t\t\t);
-\t\t\tpath = include;
+\t\t\tname = include;
 \t\t\tsourceTree = "<group>";
 \t\t}};
 \t\t{GROUP_VENDOR} /* vendor */ = {{
@@ -242,7 +242,7 @@ def generate():
 \t\t\tchildren = (
 \t\t\t\t{file_ref('vendor/json.hpp')} /* json.hpp */,
 \t\t\t);
-\t\t\tpath = vendor;
+\t\t\tname = vendor;
 \t\t\tsourceTree = "<group>";
 \t\t}};
 /* End PBXGroup section */
