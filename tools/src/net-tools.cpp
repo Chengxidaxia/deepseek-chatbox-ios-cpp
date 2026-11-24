@@ -284,8 +284,10 @@ ToolResult portCheck(const json& a) {
         FD_SET(fd, &wfds);
         FD_SET(fd, &efds);
         timeval tv;
-        tv.tv_sec = (long)(left / 1000);
-        tv.tv_usec = (long)((left % 1000) * 1000);
+        // Darwin 上 tv_usec 是 int（__darwin_suseconds_t），MinGW 是 long，
+        // 用 decltype 跟着平台走，避免 -Wshorten-64-to-32
+        tv.tv_sec = (decltype(tv.tv_sec))(left / 1000);
+        tv.tv_usec = (decltype(tv.tv_usec))((left % 1000) * 1000);
 #if defined(_WIN32)
         const int sr = ::select(0, nullptr, &wfds, &efds, &tv);
 #else

@@ -769,7 +769,7 @@
     "type": "function",
     "function": {
       "name": "token_count",
-      "description": "用 DeepSeek V4.1-Flash 分词器（API 名 deepseek-flash，与 V4-Pro/V3 共用词表）精确计算文本的 token 数，可返回每个 token 的 id 与片段。用户问这段文字多少 token、是否超上下文、估算费用时用。本地离线计算，不调用 API、不产生费用。",
+      "description": "粗估文本的 token 数（iOS 端按「CJK 1 token/字、其余约 3.2 字符/token」的字符规则估算，不是官方 BPE 分词器，结果带 estimated 标记）。注意：实测对中英文散文会偏高约 40%~100%（常用词会被合并成更少的 token），JSON/代码类反而可能偏低，所以只能用来判断量级（几百还是几万），不要拿它精确算钱。需要精确值请让用户看 API 返回的 usage。本地离线计算，不调用 API、不产生费用；不支持返回 token id 与片段。",
       "parameters": {
         "type": "object",
         "properties": {
@@ -793,7 +793,7 @@
     "type": "function",
     "function": {
       "name": "qr_text",
-      "description": "把文本或网址生成二维码，保存成本机 PNG 图片并返回文件路径与尺寸；也可以返回终端字符画。用户要生成二维码、让手机扫码打开链接时用。支持到版本 40（单张最多 2953 字节 @L 级），内容 16KB 以内会自动切成多张并按 #i/N 编号。",
+      "description": "把文本或网址生成二维码，直接返回内嵌的 PNG 图片（客户端会渲染出来，可长按保存/分享）与尺寸，同时给出终端字符画；iOS 端不落盘、不返回文件路径。用户要生成二维码、让手机扫码打开链接时用。支持到版本 40（单张最多 2953 字节 @L 级），内容超过单张容量会自动切成多张并按 #i/N 编号。",
       "parameters": {
         "type": "object",
         "properties": {
