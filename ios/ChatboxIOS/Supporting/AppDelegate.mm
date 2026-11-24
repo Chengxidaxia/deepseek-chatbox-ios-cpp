@@ -1,6 +1,7 @@
 #import "AppDelegate.h"
 #import "DSBoxService.h"
 #import "DSConversationListController.h"
+#import "DSTheme.h"
 #import <UserNotifications/UserNotifications.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -144,10 +145,15 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
   DSConversationListController *list = [[DSConversationListController alloc] init];
   UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:list];
   if (@available(iOS 15.0, *)) {
+    // 官方顶栏与页面同色、无分割线、无投影：内容从下面滚过去时看不出边界。
     UINavigationBarAppearance *app = [UINavigationBarAppearance new];
-    app.backgroundColor = [UIColor systemBackgroundColor];
+    [app configureWithOpaqueBackground];
+    app.backgroundColor = [DSTheme bgBase];
+    app.shadowColor = UIColor.clearColor;
+    app.titleTextAttributes = @{NSForegroundColorAttributeName: [DSTheme labelPrimary]};
     nav.navigationBar.standardAppearance = app;
     nav.navigationBar.scrollEdgeAppearance = app;
+    nav.navigationBar.compactAppearance = app;
   }
 
   self.window = [[UIWindow alloc] initWithFrame:UIScreen.mainScreen.bounds];

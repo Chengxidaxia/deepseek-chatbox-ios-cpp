@@ -133,6 +133,9 @@ extern NSString *const DSStrSearching;               // toolSearchWip = 搜索�
 extern NSString *const DSStrDeepThink;               // messageR1Button = 深度思考
 extern NSString *const DSStrSmartSearch;             // messageSearchButton = 智能搜索
 extern NSString *const DSStrStartChat;               // startChat = 开启对话
+extern NSString *const DSStrWelcomeTitle;            // welcomeMessageTitleUnified = 今天有什么可以帮到你？
+extern NSString *const DSStrWelcomeDesc;             // welcomeMessageDescription = 我可以帮你搜索、答疑、写作…
+extern NSString *const DSStrModelWelcome;            // modelWelcomeMessage = 使用%@开始对话（格式串）
 extern NSString *const DSStrSearched;                // toolSearchFinished 的短形式
 extern NSString *const DSStrBrowsing;                // toolOpen = 浏览
 extern NSString *const DSStrBrowseFailed;            // toolOpenFailed = 浏览失败

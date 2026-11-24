@@ -31,7 +31,7 @@ static NSString *DSIconAssetKey(DSIconName name) {
     case DSIconAttach: return @"paperclip_regular";
     case DSIconCamera: return @"camera_regular";
     case DSIconPhoto: return @"ic_photo_outline_20";
-    case DSIconMic: return @"voice";
+    case DSIconMic: return @"call_microphone";
     case DSIconSend: return @"ic_send_fill_20";
     case DSIconStop: return @"ic_stop_fill_20";
 
@@ -47,7 +47,7 @@ static NSString *DSIconAssetKey(DSIconName name) {
     case DSIconDislikeFill: return @"ic_dislike_fill_20";
     case DSIconShare: return @"ic_share_outline_20";
     case DSIconDownload: return @"ic_download_outline_20";
-    case DSIconSpeaker: return @"ic_playing_fill_24";
+    case DSIconSpeaker: return @"voice";
     case DSIconPlay: return @"ic_play_media_outline_24";
 
     case DSIconPin: return @"ic_pin_outline_20";

@@ -133,7 +133,12 @@ static CGFloat DSSVGNumber(const char **p) {
   DSSkipSeparators(p);
   char *end = NULL;
   double v = strtod(*p, &end);
-  if (end == *p) return 0.0;
+  if (end == *p) {
+    // 解不出数字（例如孤立的 '-'）：吃掉一个字符再返回 0，
+    // 否则外层 while (DSSVGHasNumber(&p)) 会原地打转。
+    if (**p) (*p)++;
+    return 0.0;
+  }
   *p = end;
   return (CGFloat)v;
 }
@@ -349,6 +354,9 @@ static CGMutablePathRef DSCreatePathFromData(NSString *data) {
         CGPathCloseSubpath(path);
         cur = start;
         hasCubic = hasQuad = NO;
+        // Z 之后不该再有数字；把 cmd 清掉，让外层的「没有命令却出现数字」直接退出，
+        // 避免 cmd 仍是 'Z' 时原地死循环。
+        cmd = 0;
         break;
       }
       default:
@@ -441,12 +449,12 @@ static void DSDrawSVG(NSString *svg, CGFloat size, UIColor *tint, CGContextRef c
       NSMutableDictionary *attrs = [NSMutableDictionary dictionary];
       NSString *name = DSParseTag(tag, attrs);
       if (![name isEqualToString:@"svg"]) continue;
-      NSString *vb = attrs[@"viewbox"];
+      NSString *vb = attrs[@"viewbox"];   // DSParseTag 会把属性名统一小写
       if (vb.length) {
         sscanf(vb.UTF8String, "%lf %lf %lf %lf", &vbX, &vbY, &vbW, &vbH);
       }
-      if (vbW <= 0) vbW = attrs[@"width"].doubleValue;
-      if (vbH <= 0) vbH = attrs[@"height"].doubleValue;
+      if (vbW <= 0) vbW = [attrs[@"width"] doubleValue];
+      if (vbH <= 0) vbH = [attrs[@"height"] doubleValue];
       break;
     }
   }
@@ -502,7 +510,9 @@ static void DSDrawSVG(NSString *svg, CGFloat size, UIColor *tint, CGContextRef c
     }
     if (closing) continue;
 
-    NSDictionary *style = DSMergeStyle(stack.lastObject, attrs);
+    // 必须写成带泛型的字典：不带泛型时下标返回 id，后面 style[@"x"] 之类
+    // 调 doubleValue / length 会直接编译失败（-Werror 下就是 error）。
+    NSDictionary<NSString *, NSString *> *style = DSMergeStyle(stack.lastObject, attrs);
 
     // ---- 构造几何 ----
     CGMutablePathRef path = NULL;
@@ -554,7 +564,8 @@ static void DSDrawSVG(NSString *svg, CGFloat size, UIColor *tint, CGContextRef c
     UIColor *fillColor = DSSVGColor(fillAttr, tint);
     UIColor *strokeColor = DSSVGColor(strokeAttr, tint);
     if (fillAttr.length == 0 && strokeAttr.length == 0) fillColor = tint ?: [UIColor blackColor];
-    CGFloat strokeWidth = style[@"stroke-width"].length ? [style[@"stroke-width"] doubleValue] : 1.0;
+    NSString *sw = style[@"stroke-width"];
+    CGFloat strokeWidth = sw.length ? sw.doubleValue : 1.0;
     BOOL evenOdd = [style[@"fill-rule"] isEqualToString:@"evenodd"] ||
                    [style[@"clip-rule"] isEqualToString:@"evenodd"];
 

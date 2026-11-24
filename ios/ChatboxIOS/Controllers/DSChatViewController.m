@@ -115,7 +115,7 @@
   [self refreshEmptyState];
 
   self.navigationItem.rightBarButtonItem =
-      [[UIBarButtonItem alloc] initWithImage:[DSIcon image:DSIconPlus size:20]
+      [[UIBarButtonItem alloc] initWithImage:[DSIcon image:DSIconNewChat size:22]
                                        style:UIBarButtonItemStylePlain
                                       target:self
                                       action:@selector(newChatHere)];
@@ -129,7 +129,7 @@
 /// 中间模型选择（`chat/top_bar/modelChoose`，点开是带勾的列表）、右 ＋（新对话）。
 - (void)buildNavigationBar {
   self.navigationItem.leftBarButtonItem =
-      [[UIBarButtonItem alloc] initWithImage:[DSIcon image:DSIconMenu size:22]
+      [[UIBarButtonItem alloc] initWithImage:[DSIcon image:DSIconMenu size:DSIconPointSizeNav]
                                        style:UIBarButtonItemStylePlain
                                       target:self
                                       action:@selector(openSessionList)];
@@ -203,19 +203,21 @@
   [self.view addSubview:v];
   _welcomeView = v;
 
-  // 文案全部取自官方 2.7.1：startChat=开启对话、inputAIAlert=回答由 AI 生成，仅供参考
+  // 文案全部取自官方 2.7.1：welcomeMessageTitleUnified=今天有什么可以帮到你？
+  // welcomeMessageDescription=我可以帮你搜索、答疑、写作…（见 DSStrings.h）
   UILabel *title = [[UILabel alloc] init];
   title.translatesAutoresizingMaskIntoConstraints = NO;
-  title.text = DSStrStartChat;
-  title.font = [UIFont systemFontOfSize:22 weight:UIFontWeightSemibold];
+  title.text = DSStrWelcomeTitle;
+  title.font = [UIFont systemFontOfSize:24 weight:UIFontWeightSemibold];
   title.textColor = [DSTheme labelPrimary];
   title.textAlignment = NSTextAlignmentCenter;
+  title.numberOfLines = 0;
 
   UILabel *tip = [[UILabel alloc] init];
   tip.translatesAutoresizingMaskIntoConstraints = NO;
-  tip.text = DSStrAIAlert;
-  tip.font = [UIFont systemFontOfSize:13];
-  tip.textColor = [DSTheme labelTertiary];
+  tip.text = DSStrWelcomeDesc;
+  tip.font = [UIFont systemFontOfSize:15];
+  tip.textColor = [DSTheme labelSecondary];
   tip.textAlignment = NSTextAlignmentCenter;
   tip.numberOfLines = 0;
 
@@ -301,13 +303,13 @@
   // ---- 工具行右侧：附件 / 语音 / 发送 ----
   _attachButton = [UIButton buttonWithType:UIButtonTypeSystem];
   _attachButton.translatesAutoresizingMaskIntoConstraints = NO;
-  [_attachButton setImage:[DSIcon image:DSIconPlus size:22] forState:UIControlStateNormal];
+  [_attachButton setImage:[DSIcon image:DSIconPlus size:DSIconPointSizeAction] forState:UIControlStateNormal];
   _attachButton.tintColor = [DSTheme labelSecondary];
   [_attachButton addTarget:self action:@selector(attachTapped) forControlEvents:UIControlEventTouchUpInside];
 
   _micButton = [UIButton buttonWithType:UIButtonTypeSystem];
   _micButton.translatesAutoresizingMaskIntoConstraints = NO;
-  [_micButton setImage:[DSIcon image:DSIconMic size:21] forState:UIControlStateNormal];
+  [_micButton setImage:[DSIcon image:DSIconMic size:DSIconPointSizeAction] forState:UIControlStateNormal];
   _micButton.tintColor = [DSTheme labelSecondary];
   UILongPressGestureRecognizer *press =
       [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(micPressed:)];
@@ -316,7 +318,7 @@
 
   _sendButton = [UIButton buttonWithType:UIButtonTypeSystem];
   _sendButton.translatesAutoresizingMaskIntoConstraints = NO;
-  [_sendButton setImage:[DSIcon image:DSIconSend size:17] forState:UIControlStateNormal];
+  [_sendButton setImage:[DSIcon image:DSIconSend size:DSIconPointSizeInline] forState:UIControlStateNormal];
   _sendButton.tintColor = UIColor.whiteColor;
   _sendButton.backgroundColor = [DSTheme brand];
   _sendButton.layer.cornerRadius = 15;
@@ -327,7 +329,7 @@
 
   _stopButton = [UIButton buttonWithType:UIButtonTypeSystem];
   _stopButton.translatesAutoresizingMaskIntoConstraints = NO;
-  [_stopButton setImage:[DSIcon image:DSIconStop size:15] forState:UIControlStateNormal];
+  [_stopButton setImage:[DSIcon image:DSIconStop size:DSIconPointSizeInline] forState:UIControlStateNormal];
   _stopButton.tintColor = UIColor.whiteColor;
   _stopButton.backgroundColor = [DSTheme labelPrimary];
   _stopButton.layer.cornerRadius = 15;
@@ -417,7 +419,7 @@
   b.titleLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
   b.titleLabel.lineBreakMode = NSLineBreakByTruncatingTail;
   [b setTitle:title forState:UIControlStateNormal];
-  [b setImage:[DSIcon image:icon size:16] forState:UIControlStateNormal];
+  [b setImage:[DSIcon image:icon size:DSIconPointSizeInline] forState:UIControlStateNormal];
   // 这三个 inset 在 iOS 15+ 被标了 deprecated，但只在使用 UIButtonConfiguration 时才被忽略；
   // 这里用的是 buttonWithType: 的旧式按钮（configuration 为 nil），inset 仍然生效，
   // 换成 configuration 反而要自己维护 attributedTitle 的字体/配色，不划算。
