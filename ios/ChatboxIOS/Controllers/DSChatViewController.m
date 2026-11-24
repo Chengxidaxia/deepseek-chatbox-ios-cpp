@@ -31,7 +31,7 @@
 @property (nonatomic, copy) NSString *convId;
 
 // 数据
-@property (nonatomic, strong) NSMutableArray<NSDictionary *> *rawMessages;
+@property (nonatomic, strong) NSMutableArray<NSMutableDictionary *> *rawMessages;
 @property (nonatomic, strong) NSArray<DSTurn *> *turns;
 @property (nonatomic, assign) BOOL streaming;
 

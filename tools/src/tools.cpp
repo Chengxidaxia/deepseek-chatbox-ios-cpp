@@ -442,7 +442,7 @@ static ToolResult callImpl(const std::string& name, const json& a, const ToolCon
       if (unique && count > n) return fail("unique=true 时数量不能超过候选数（" + std::to_string(n) + "）。");
       std::vector<int> idx(n); for(int i=0;i<n;i++)idx[i]=i;
       for (int k=0;k<count;k++) {
-        int pick = unique ? (std::uniform_int_distribution<int>(0,idx.size()-1)(rng)) : (std::uniform_int_distribution<int>(0,n-1)(rng));
+        int pick = unique ? (std::uniform_int_distribution<int>(0,(int)idx.size()-1)(rng)) : (std::uniform_int_distribution<int>(0,n-1)(rng));
         std::string v = items[unique?idx[pick]:pick].get<std::string>();
         if (unique) idx.erase(idx.begin()+pick);
         picks.push_back(v); text += v + "\n";
@@ -561,7 +561,7 @@ static ToolResult callImpl(const std::string& name, const json& a, const ToolCon
     int n=(int)nums.size(), prec=std::min(10,std::max(0,iarg(a,"precision",4)));
     std::vector<double> sorted=nums; std::sort(sorted.begin(),sorted.end());
     double sum=0; for(double v:nums)sum+=v; double mean=sum/n;
-    auto medianOf=[&](const std::vector<double>& v){ int m=v.size(); if(m%2)return v[(m-1)/2]; return (v[m/2-1]+v[m/2])/2; };
+    auto medianOf=[&](const std::vector<double>& v){ int m=(int)v.size(); if(m%2)return v[(m-1)/2]; return (v[m/2-1]+v[m/2])/2; };
     double median=medianOf(sorted), half=n/2;
     double q1=medianOf(std::vector<double>(sorted.begin(),sorted.begin()+half));
     double q3=medianOf(std::vector<double>(sorted.begin()+(n%2?half+1:half),sorted.end()));

@@ -354,7 +354,7 @@ bool Store::hasKeyEncrypted() {
 bool Store::setKeyEncrypted(const std::string& apiKey, const std::string& pin, std::string* err) {
   if (pin.size() < 4) { if (err) *err = "PIN 至少 4 位"; return false; }
   std::string cipher = crypto::encrypt(apiKey, pin, err).serialize();
-  if (cipher.empty() || err && !err->empty()) return false;
+  if (cipher.empty() || (err && !err->empty())) return false;
   std::lock_guard<std::mutex> lk(mu_);
   sqlite3_stmt* st = nullptr;
   if (sqlite3_prepare_v2(db_, "INSERT INTO meta(key,value) VALUES('key_cipher',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", -1, &st, nullptr) != SQLITE_OK) {

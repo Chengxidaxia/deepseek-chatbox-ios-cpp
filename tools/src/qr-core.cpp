@@ -284,7 +284,7 @@ static void appendChunk(std::vector<unsigned char>& png, const char* type, const
   size_t off = png.size();
   png.insert(png.end(), type, type + 4);
   png.insert(png.end(), data.begin(), data.end());
-  uint32_t crc = (uint32_t)crc32(0, png.data() + off, 4 + data.size());
+  uint32_t crc = (uint32_t)crc32(0, png.data() + off, (uInt)(4 + data.size()));
   appendU32BE(png, crc);
 }
 
