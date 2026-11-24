@@ -13,6 +13,7 @@ if(NOT IOS)
   find_package(CURL REQUIRED)
   find_package(OpenSSL REQUIRED)
   find_package(SQLite3 REQUIRED)
+  find_package(ZLIB REQUIRED)
 endif()
 
 # ---------------------------------------------------------------------------
@@ -27,9 +28,21 @@ target_include_directories(dsbox_core PUBLIC
 
 if(NOT IOS)
   target_link_libraries(dsbox_core PUBLIC
-    CURL::libcurl OpenSSL::SSL OpenSSL::Crypto SQLite::SQLite3
+    CURL::libcurl OpenSSL::SSL OpenSSL::Crypto SQLite3::SQLite3 ZLIB::ZLIB
   )
 endif()
+
+# ---------------------------------------------------------------------------
+# tools 静态库（内置工具引擎 + QR），依赖 core 的模型/util/crypto
+# ---------------------------------------------------------------------------
+file(GLOB TOOL_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/tools/src/*.cpp)
+add_library(dsbox_tools STATIC ${TOOL_SOURCES})
+target_include_directories(dsbox_tools PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/tools/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/core/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/vendor
+)
+target_link_libraries(dsbox_tools PUBLIC dsbox_core)
 
 # ---------------------------------------------------------------------------
 # 测试程序（本机验证用）
@@ -41,7 +54,9 @@ if(DSBOX_BUILD_TESTS AND NOT IOS)
   foreach(src ${TEST_SOURCES})
     get_filename_component(name ${src} NAME_WE)
     add_executable(${name} ${src})
-    target_link_libraries(${name} PRIVATE dsbox_core)
+    target_link_libraries(${name} PRIVATE dsbox_core dsbox_tools)
     add_test(NAME ${name} COMMAND ${name})
+    # 测试用相对路径读 tools/tool_defs.json，工作目录固定为仓库根
+    set_tests_properties(${name} PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
   endforeach()
 endif()
