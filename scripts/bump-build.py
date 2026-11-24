@@ -38,7 +38,9 @@ def load() -> dict:
 
 
 def now() -> str:
-    return time.strftime('%Y-%m-%d %H:%M %z')
+    # 固定用 +0800：CI runner 是 UTC，本地是 +0800，混着记会看不懂先后顺序
+    t = time.gmtime(time.time() + 8 * 3600)
+    return time.strftime('%Y-%m-%d %H:%M', t) + ' +0800'
 
 
 def save(d: dict) -> None:

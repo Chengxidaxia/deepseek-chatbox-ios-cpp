@@ -75,6 +75,9 @@ python scripts/bump-build.py --release --note "v1.12.6"   # 发版：build 也 +
 云编译由 workflow 的 `Record build count` 步骤自动记，master 分支上会回写仓库
 （提交信息带 `[skip ci]`，不会再触发一轮）；tag 构建是 detached HEAD，只写进 run summary 不回写。
 
+> **坑**：GitHub 对 `[skip ci]` 是**全文匹配**，不只看标题行。提交正文里只要出现这个字样
+> （哪怕是在解释它），整次 push 的 workflow 都会被跳过。写提交信息时别在正文里提这个词。
+
 ## 目录
 
 - `core/include` / `core/src` — 跨平台核心库
