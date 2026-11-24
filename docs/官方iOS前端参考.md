@@ -227,8 +227,105 @@
 | 智能搜索开关 | 以前 `search`/`readUrl` 只是存了个值，`buildPayload` 根本没用 —— 现在关掉就**真的不把 `web_search`/`fetch_url`/`http_request` 发给模型** |
 | 工具定义装载 | 以前只在「设置里看工具列表」时才 `loadDefinitions`，没进过那页的话 `defs_` 是空的，智能搜索一个工具都带不上去；现在 `DSBoxService -init` 里一次性装载 |
 
-> 仍未对齐（缺参考）：气泡/卡片的具体间距与字号、欢迎页图形、侧边抽屉的滑动手感。
-> 这些只有拿到官方运行截图才能抠，资源名给不出数值。
+> 上一版这里写着「只有拿到官方运行截图才能抠」。**其实不用截图** —— 官方图标的原始
+> 矢量就在包里，见 6.3。
+
+## 6.3 把官方图标原矢量从 `Assets.car` 里抠出来（2026-11-24 第三次对齐）
+
+没有实物截图，也不靠「按几何特征重绘」。官方包本身就是最权威的参考，只是数据藏在
+`Assets.car` 里，需要自己解。完整链路：
+
+### ① `Assets.car` = BOMStore 容器
+
+```
+0    'BOMStore'
+8    version = 1
+12   blockCount
+16   indexOffset    ← 块表
+20   indexLength
+24   varsOffset
+28   varsLength
+```
+
+块表按 8 字节一条（`address, length`）索引整包 2600 多个数据块。**但不需要用块表**：
+每个 rendition 的 `ISTC` 头就紧挨在它自己的数据前面，所以「从数据块往前找最近的
+`ISTC`」就能拿到它的资源名。
+
+### ② `ISTC` 头（**小端**）
+
+| 偏移 | 字段 | 例（`iconFile.svg`） |
+|---|---|---|
+| 0 | `ISTC` | |
+| 4 | version | 1 |
+| 8 | flags | 0x00000104 |
+| 12 | width（像素） | 0 |
+| 16 | height | 0 |
+| 20 | scale × 100 | 0（矢量原生，无栅格化倍率） |
+| 24 | 像素格式 | ` GVS` → 反过来读是 **`SVG `** |
+| 40 | 资源名（NUL 结尾） | `iconFile.svg` |
+
+> 踩坑：这几个整数是**小端**。按大端读会得到 `version = 16777216`，一个头都匹配不上。
+
+### ③ 载荷是 LZVN 压缩的（`bvxn`）
+
+`bvxn` 不是 LZFSE v2，是它的快速变体 **LZVN**，没有 FSE/Huffman，自己写 60 行就能解：
+
+```
+块头：'bvxn' | u32 n_raw | u32 n_payload        （都小端）
+opcode：
+  0xE0         大字面量：长度 = 次字节 + 16
+  0xE1-0xEF    小字面量：长度 = opc & 0x0F
+  0xF0         大 match：长度 = 次字节 + 16，沿用上次距离
+  0xF1-0xFF    小 match：长度 = opc & 0x0F，沿用上次距离
+  LLMMMDDD + 1 字节      sml_d：L=高2位, M=中3位+3, D=低3位<<8|次字节
+  LLMMM111 + 2 字节      lrg_d：同上，D = 16 位
+  101LLMMM + 2 字节      med_d：L=bit3-4, M=5 位+3, D=14 位
+  LLMMM110               pre_d：同上，沿用上次距离
+  0x06 = eos（占 8 字节）  0x0E/0x16 = nop
+```
+
+实测校验：解出字节数 **恰好等于** 头里的 `n_raw`，且首个块开头的 `18 0c` 正好解出
+`="28" `（回溯 12 字节复制 6 字节）—— 对得上就说明码表没读错。
+
+### ④ 结果
+
+624 个 rendition 里 **182 个是 SVG**，全部解出，`<svg`/`viewBox` 各 184 处、
+零位图（`PNG` 计数为 0，栅格 rendition 是裸 BGRA/GA8 像素）。
+
+落地成仓库里的东西：
+
+| 产物 | 说明 |
+|---|---|
+| `ios/ChatboxIOS/Resources/OfficialIcons/*.svg` | 58 个官方图标**原样**保留，便于日后逐字核对 |
+| `scripts/gen-icon-assets.py` | 打成 C 表 `DSIconAssets.h/.m`；`--check` 供 CI 校验是否最新 |
+| `ios/ChatboxIOS/Supporting/DSSVGIcon.m` | 自带 SVG 解析器：path 全命令（含弧线转三次贝塞尔）、rect/circle/ellipse/line、fill/stroke/stroke-width/linecap/linejoin/fill-rule、transform |
+| `ios/ChatboxIOS/Supporting/DSIcon.m` | 枚举 → 官方资源名，删掉全部手绘近似几何 |
+
+### ⑤ 顺带拿到的官方配色（57 个 SVG 的 fill 统计）
+
+| 色值 | 次数 | 用途 |
+|---|---|---|
+| `#0F0F0F` | 130 | 主文字 / 主图标 |
+| `white` | 58 | 反白（发送箭头、停止方块） |
+| `#7D7F85` | 52 | 次要用色（搜索、加号） |
+| `#18181B` | 26 | 深一档的文字 |
+| `#426EFE` / `#4E77FF` / `#3E5FFE` | 11 | 品牌强调蓝 |
+| `#EF4444` | 3 | 危险 |
+| `#22C55E` / `#00D158` | 4 | 成功 |
+| `#6D93FF → #5A71F0` | — | 品牌渐变（`ic_link_outline` 的 linearGradient） |
+
+`DSTheme` 的 `labelPrimary` / `labelSecondary` / `labelTertiary` / `brand` / `danger`
+已按上表校准（`#0F0F0F` / `#7D7F85` / `#8E9094` / `#426EFE` / `#EF4444`）。
+
+### ⑥ 尺寸口径
+
+官方图标只有 **16 / 20 / 24** 三种画布，且文件名自带：
+`ic_*_16` 用于输入条开关、`ic_*_20` 用于列表与操作、`ic_*_24` 用于顶栏。
+`DSIconPointSizeInline/Action/Nav` 三个常量就是这三个值，调用点一律用它们，
+不再各处写 17/21/22 这种手调数字。
+
+> 仍然没有的：**布局数值**（间距、字号、圆角半径）。这些不在 `Assets.car` 里，
+> 在 Swift 代码的常量里；要继续抠得反编译 `DeepSeek Chat` 主二进制。
 
 ## 7. 构建状态
 

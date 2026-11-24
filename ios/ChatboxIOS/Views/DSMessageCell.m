@@ -101,7 +101,7 @@
   ]];
 
   // 气泡下方：分支切换 + 复制（右对齐，对齐官方 UserMessageOperationBar）
-  _btnUserCopy = [self footerButtonWithTitle:DSStrCopy action:@selector(onCopyTapped)];
+  _btnUserCopy = [self footerIconButton:DSIconCopy label:DSStrCopy action:@selector(onCopyTapped)];
   _userBranchBar = [[DSBranchBar alloc] initWithFrame:CGRectZero];
   UIView *spacer = [[UIView alloc] init];
   [spacer setContentHuggingPriority:UILayoutPriorityDefaultLow forAxis:UILayoutConstraintAxisHorizontal];
@@ -137,15 +137,15 @@
   _usageLabel.textColor = [DSTheme labelCaption];
 
   _assistBranchBar = [[DSBranchBar alloc] initWithFrame:CGRectZero];
-  _btnCopy = [self footerButtonWithTitle:DSStrCopy action:@selector(onCopyTapped)];
-  _btnRegen = [self footerButtonWithTitle:DSStrRegenerate action:@selector(regenTapped)];
-  _btnContinue = [self footerButtonWithTitle:DSStrContinue action:@selector(continueTapped)];
+  _btnCopy = [self footerIconButton:DSIconCopy label:DSStrCopy action:@selector(onCopyTapped)];
+  _btnRegen = [self footerIconButton:DSIconRefresh label:DSStrRegenerate action:@selector(regenTapped)];
+  _btnContinue = [self footerIconButton:DSIconContinue label:DSStrContinue action:@selector(continueTapped)];
 
   UIView *spacer = [[UIView alloc] init];
   [spacer setContentHuggingPriority:UILayoutPriorityDefaultLow forAxis:UILayoutConstraintAxisHorizontal];
 
   _footerStack = [[UIStackView alloc] initWithArrangedSubviews:
-      @[_assistBranchBar, _usageLabel, spacer, _btnContinue, _btnCopy, _btnRegen]];
+      @[_assistBranchBar, _usageLabel, spacer, _btnCopy, _btnRegen, _btnContinue]];
   _footerStack.axis = UILayoutConstraintAxisHorizontal;
   _footerStack.spacing = 12;
   _footerStack.alignment = UIStackViewAlignmentCenter;
@@ -162,6 +162,21 @@
   [b setTitle:title forState:UIControlStateNormal];
   [b setTitleColor:[DSTheme labelTertiary] forState:UIControlStateNormal];
   [b addTarget:self action:action forControlEvents:UIControlEventTouchUpInside];
+  [b setContentHuggingPriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
+  return b;
+}
+
+/// 底部操作按钮：官方 `chat/thumb_bar/*` 是**纯图标**、没有文字，
+/// 图标统一 18pt（官方画布 20，留 1pt 内边距），默认次要灰。
+- (UIButton *)footerIconButton:(DSIconName)icon label:(NSString *)label action:(SEL)action {
+  UIButton *b = [UIButton buttonWithType:UIButtonTypeSystem];
+  b.translatesAutoresizingMaskIntoConstraints = NO;
+  [b setImage:[DSIcon image:icon size:18] forState:UIControlStateNormal];
+  b.tintColor = [DSTheme labelTertiary];
+  b.accessibilityLabel = label;
+  [b addTarget:self action:action forControlEvents:UIControlEventTouchUpInside];
+  [b.widthAnchor constraintEqualToConstant:28].active = YES;
+  [b.heightAnchor constraintEqualToConstant:28].active = YES;
   [b setContentHuggingPriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
   return b;
 }
