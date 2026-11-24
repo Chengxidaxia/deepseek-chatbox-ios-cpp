@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-14          # Apple Silicon，arm64-ios triplet 原生编译
+    runs-on: macos-latest      # 用 GitHub 当前可用的 macOS runner；arm64-ios 交叉编译
     timeout-minutes: 60
     steps:
       - name: Checkout
