@@ -193,22 +193,43 @@ demangle），把每个函数和类对上。这是一项独立的、更大的工
 
 ## 3. 我们 vs 官方：差异表
 
-| 项 | 官方 | 我们（build 121） | 影响 |
+状态截至 **build 123**。
+
+| 项 | 官方 | 我们 | 状态 |
 |---|---|---|---|
-| 根容器 | `RootViewController` | `DSRootViewController` ✅ | 已对齐 |
-| 抽屉 | `SidebarViewController` | 自绘 drawer ✅ | 已对齐 |
-| **抽屉打开时主页面缩放圆角** | `MainDecorationView` + `CornerReferenceView` | **无** | 观感差异明显 |
-| 会话列表 | **UICollectionView** + 骨架屏 + 加载更多 | UITableView | 中等 |
-| 会话搜索 | `SessionListSearchBarView.SearchFieldView` | 自绘 UITextField | 小 |
-| 空态 | `MessageViewController.EmptyView` 独立视图 | 内嵌 label | 小 |
-| 输入区 | `TextInputView` → `ActionAreaView` → `ToggleButtonGroup` 三层 | 单层 stack | **大** |
-| chips 容器 | `ToggleButtonGroup` + `ToggleButtonContainer` | 直接塞 stack | 中等 |
-| 搜索/思考运行态 | `SearchOperationView` / `ReasoningOperationView` 独立视图 | 无（只改 chip 颜色） | **大** |
-| 回到底部 | `BackToBottomButton` | 无 | 中等 |
-| 按钮 | **统一 `DSButton`** + 5 种 Config | 各处手写 UIButton | **大（这是「不像」的深层原因）** |
-| 顶栏渐隐 | `VariableBlurView` | 无 | 小 |
-| 设置页 | `ProfileViewController` + `InsetsGroupedCell` | 手写 tableView | 中等 |
-| 布局方式 | **FlexLayout（flexbox）** | NSLayoutConstraint 手写 | 结构性差异 |
+| 根容器 | `RootViewController` | `DSRootViewController` | ✅ |
+| 抽屉 | `SidebarViewController` | 自绘 drawer | ✅ |
+| 抽屉打开时主页面缩放圆角 | `MainDecorationView` + `CornerReferenceView` | `content` 容器 scale 0.94 + 圆角 12 | ✅ build 122 |
+| 按钮 | `DSButton` + 5 种 Config | `DSButton` / `DSButtonConfig` | ✅ build 122 |
+| 顶栏/输入区渐隐 | `VariableBlurView` | `DSVariableBlurView`（变强度模糊） | ✅ build 123 |
+| 回到底部 | `BackToBottomButton` | `DSBackToBottomButton` | ✅ build 123 |
+| 搜索/思考运行态 | `SearchOperationView` / `ReasoningOperationView` | `DSOperationView`（一个类两种 kind） | ✅ build 123 |
+| chips 容器 | `ToggleButtonGroup` / `ToggleButtonContainer` | `DSToggleButtonGroup` | ✅ build 123 |
+| 空态 | `MessageViewController.EmptyView` + `PromptSuggestionView.TemplateButton` | 独立 welcomeView + 建议问题胶囊 | ✅ build 123 |
+| 会话列表 | **UICollectionView** + 骨架屏 + 加载更多 + 虚拟根 cell | UITableView | ❌ 未做 |
+| 会话搜索 | `SessionListSearchBarView.SearchFieldView` | 自绘 UITextField | 部分 |
+| 输入区三层 | `TextInputView`(自带 Layout) → `ActionAreaView` → `ToggleButtonGroup` | 两层：输入框 + 工具条（含 group） | 部分 |
+| 设置页 | `ProfileViewController` + `InsetsGroupedCell` / `SectionHeader` | 手写 tableView | ❌ 未做 |
+| 消息操作栏 | `BaseMessageOperationBar` + `Coordinator` | 已有图标操作栏 | 部分 |
+| 布局方式 | **FlexLayout（flexbox）** | NSLayoutConstraint 手写 | 不打算改 |
+
+### 还剩的两块（都不小）
+
+**会话列表改 CollectionView**：官方 `SessionListCollectionView` 带
+`VirtualRootCell`（分组标题容器）、`SkeletonRowsView`（骨架屏）、
+`LoadMoreSkeletonCell` / `LoadMoreFailedCell`（分页态）、`FooterHeightResolver`。
+这是把现在的 UITableView 换成 UICollectionView + Compositional Layout，
+属于推倒重写，不是补组件。
+
+**设置页对齐 `ProfileViewController`**：官方是 `InsetsGroupedCell` +
+`InsetsGroupedLayer`（内缩分组卡片）+ `SectionHeader` / `SectionFooter` +
+`ForwardChevron`。我们目前是普通 grouped tableView，观感差距在卡片圆角和内缩量。
+
+### 关于 FlexLayout
+
+官方布局走 flexbox，我们继续用 NSLayoutConstraint。**这一项不打算改**：
+引入 FlexLayout 意味着换掉全部约束代码，收益是「写布局的方式一致」，
+但用户看到的是渲染结果，两者能做到同样的像素。不值得为此重写整个 UI 层。
 
 **最该先补的三件事**（按观感收益排序）：
 
