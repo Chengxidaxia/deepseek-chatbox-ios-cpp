@@ -44,6 +44,7 @@ extern NSString *const DSStrStop;                    // 自创：停止（官方
 extern NSString *const DSStrNewLine;                 // new_line_menu = 换行
 extern NSString *const DSStrThinking;                // thinking = 正在思考
 extern NSString *const DSStrThinkingDone;            // 自创：已思考（官方有「已深度思考」长文案，这里用短式）
+extern NSString *const DSStrThinkDuration;           // messageThinkDuration = 已思考（用时 %1$d 秒）
 extern NSString *const DSStrThinkAutoFold;           // thinkingAutoFold = 思考内容自动折叠
 extern NSString *const DSStrThinkAutoFoldDesc;       // thinkingAutoFoldDesc
 extern NSString *const DSStrRegenerate;              // regenerateNormal = 再试一次
@@ -55,7 +56,7 @@ extern NSString *const DSStrAIAlert;                 // inputAIAlert = 回答由
 extern NSString *const DSStrContextLimitTitle;       // hintClickContextExceedDialogTitle = 对话长度已达上限
 extern NSString *const DSStrContextLimitDesc;        // hintClickContextExceedDialogDescription
 extern NSString *const DSStrContextLimitConfirm;     // hintClickContextExceedDialogConfirm = 我知道了
-extern NSString *const DSStrBranchSwitcher;          // branch_switcher_description = 第 %d 条消息（共 %d 条）
+extern NSString *const DSStrBranchSwitcher;          // branch_switcher_description = 第 %1$d 条消息（共 %2$d 条）（本地格式串用 %ld）
 
 #pragma mark - 消息操作
 
@@ -80,8 +81,8 @@ extern NSString *const DSStrToolFindWip;             // toolFindWip = 正在查�
 extern NSString *const DSStrToolFindDone;            // toolFindFinished = 已查找到“%@”
 extern NSString *const DSStrToolFindEmpty;           // toolFindNoResult = 未查找到“%@”
 extern NSString *const DSStrToolFindFailed;          // toolFindFailed = 查找失败
-extern NSString *const DSStrMergeSearchCount;        // mergeToolSearchResults = 已搜索到 %d 个网页
-extern NSString *const DSStrMergeOpenCount;          // mergeToolOpenResults = 已浏览 %d 个页面
+extern NSString *const DSStrMergeSearchCount;        // mergeToolSearchResults = 已搜索到 %1$d 个网页（本地格式串用 %ld）
+extern NSString *const DSStrMergeOpenCount;          // mergeToolOpenResults = 已浏览 %1$d 个页面（本地格式串用 %ld）
 
 #pragma mark - 模型  （*ModelName / *ModelDescription）
 
@@ -129,7 +130,9 @@ extern NSString *const DSStrSystemPrompt;            // 系统提示词
 #pragma mark - 补充文案（官方 806 条中对应的 key 已注明；标自创的是官方无此项）
 
 extern NSString *const DSStrSearching;               // toolSearchWip = 搜索中...
-extern NSString *const DSStrDeepThink;               // deepThink = 深度思考
+extern NSString *const DSStrDeepThink;               // messageR1Button = 深度思考
+extern NSString *const DSStrSmartSearch;             // messageSearchButton = 智能搜索
+extern NSString *const DSStrStartChat;               // startChat = 开启对话
 extern NSString *const DSStrSearched;                // toolSearchFinished 的短形式
 extern NSString *const DSStrBrowsing;                // toolOpen = 浏览
 extern NSString *const DSStrBrowseFailed;            // toolOpenFailed = 浏览失败

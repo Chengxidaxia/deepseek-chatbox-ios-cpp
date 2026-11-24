@@ -238,7 +238,9 @@
 
 - (void)renderUser:(DSTurn *)t {
   NSDictionary *m = t.anchor;
-  _userLabel.attributedText = [DSTheme bodyText:m[@"content"] ?: @"" color:[DSTheme labelPrimary]];
+  // JSON null → NSNull，bodyText: 内部会取 length，先归一成字符串
+  NSString *content = [m[@"content"] isKindOfClass:NSString.class] ? m[@"content"] : @"";
+  _userLabel.attributedText = [DSTheme bodyText:content color:[DSTheme labelPrimary]];
   [self renderUserAttachments:m[@"attachments"]];
 
   if (t.branchTotal > 1) {
@@ -256,7 +258,7 @@
   } else {
     _userBranchBar.hidden = YES;
   }
-  _btnUserCopy.hidden = [(NSString *)(m[@"content"] ?: @"") length] == 0;
+  _btnUserCopy.hidden = content.length == 0;
 }
 
 /// 用户气泡里的附件预览：图片显示缩略图，其它显示文件名 chip
@@ -480,7 +482,7 @@
       UIButton *head = (UIButton *)[box viewWithTag:0x7A12];
       if (head) {
         BOOL streaming = t.streaming && i == t.rounds.count - 1;
-        [head setTitle:streaming ? DSStrThinking : DSStrThinkingDone forState:UIControlStateNormal];
+        [head setTitle:[self thinkTitleForRound:round streaming:streaming] forState:UIControlStateNormal];
       }
     }
     UILabel *content = (UILabel *)self.fragIndex[[NSString stringWithFormat:@"content:%lu", (unsigned long)i]];
@@ -520,15 +522,30 @@
   long long p = 0, c = 0;
   BOOL any = NO;
   for (NSDictionary *r in t.rounds) {
+    // JSON null 会被转成 NSNull，直接 longLongValue 会崩，必须判类型
     id pp = r[@"prompt_tokens"], cc = r[@"completion_tokens"];
-    if (pp) { p += [pp longLongValue]; any = YES; }
-    if (cc) { c += [cc longLongValue]; any = YES; }
+    if ([pp isKindOfClass:NSNumber.class]) { p += [pp longLongValue]; any = YES; }
+    if ([cc isKindOfClass:NSNumber.class]) { c += [cc longLongValue]; any = YES; }
   }
   if (!any) return @"";
   return [NSString stringWithFormat:@"↑%lld ↓%lld", p, c];
 }
 
 #pragma mark - 思考块
+
+/// 思考头部文案：流式中「正在思考」，结束后官方给「已思考（用时 N 秒）」（messageThinkDuration）
+- (NSString *)thinkTitleForRound:(NSDictionary *)round streaming:(BOOL)streaming {
+  if (streaming) return DSStrThinking;
+  NSNumber *start = [round[@"thinkStart"] isKindOfClass:NSNumber.class] ? round[@"thinkStart"] : nil;
+  NSNumber *end = [round[@"thinkEnd"] isKindOfClass:NSNumber.class] ? round[@"thinkEnd"] : nil;
+  if (start && end) {
+    double diff = end.doubleValue - start.doubleValue;
+    long sec = (long)(diff + 0.5);
+    if (sec < 1) sec = 1;
+    return [NSString stringWithFormat:DSStrThinkDuration, sec];
+  }
+  return DSStrThinkingDone;
+}
 
 - (UIView *)thinkBoxForRound:(NSDictionary *)round
                        index:(NSUInteger)index
@@ -548,7 +565,7 @@
   head.titleLabel.font = [DSTheme thinkHeadFont];
   [head setTitleColor:[DSTheme labelSecondary] forState:UIControlStateNormal];
   BOOL streaming = (index == self.turn.rounds.count - 1) && self.turn.streaming;
-  [head setTitle:streaming ? DSStrThinking : DSStrThinkingDone forState:UIControlStateNormal];
+  [head setTitle:[self thinkTitleForRound:round streaming:streaming] forState:UIControlStateNormal];
 
   UILabel *body = [[UILabel alloc] init];
   body.translatesAutoresizingMaskIntoConstraints = NO;

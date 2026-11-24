@@ -9,16 +9,10 @@
 
 @implementation DSSettingsViewController
 
-/// 模型 id → 官方叫法（快速模式 / 专家模式 / 识图模式）。
-/// 官方这三档是其服务端概念，本 App 直连 API，故映射到对应的 API 模型名；
-/// 未命中的模型原样显示，不做猜测。
+/// 模型 id → 展示名。
+/// 官方 2.7.1 已取消「快速/专家/识图」三档，这里直接显示 API 模型名，不再套旧叫法。
 - (NSString *)displayNameForModel:(NSString *)model {
-  if (model.length == 0) return DSStrModelDefault;
-  if ([model isEqualToString:@"deepseek-chat"]) return [NSString stringWithFormat:@"%@（%@）", DSStrModelDefault, model];
-  if ([model isEqualToString:@"deepseek-reasoner"]) return [NSString stringWithFormat:@"%@（%@）", DSStrModelExpert, model];
-  if ([model containsString:@"vl"] || [model containsString:@"vision"]) {
-    return [NSString stringWithFormat:@"%@（%@）", DSStrModelVision, model];
-  }
+  if (model.length == 0) return @"-";
   return model;
 }
 

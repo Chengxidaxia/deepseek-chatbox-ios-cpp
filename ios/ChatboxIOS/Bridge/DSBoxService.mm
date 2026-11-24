@@ -92,6 +92,13 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
                  continuePrefix:(std::string)continuePrefix
                        delegate:(id<DSBoxChatDelegate>)delegate
                          apiKey:(std::string)apiKey;
+- (void)runAgentLoopImplWithHistory:(std::vector<Message>)history
+                           settings:(Settings)st
+                           toolDefs:(std::vector<json>)toolDefs
+                     continuePrefix:(std::string)continuePrefix
+                           delegate:(id<DSBoxChatDelegate>)delegate
+                             apiKey:(std::string)apiKey;
+- (void)finishAgentLoopWithError:(NSString *)message delegate:(id<DSBoxChatDelegate>)delegate;
 - (void)emitToDelegate:(id<DSBoxChatDelegate>)delegate
                   type:(DSBoxStreamEventType)type
                   text:(NSString *)text
@@ -422,7 +429,16 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
   ctx.listModels = [self](const std::string &key, std::string *err) {
     return self->api_ ? self->api_->listModels(key, err) : std::vector<ModelInfo>{};
   };
-  ToolResult r = ToolEngine::instance().call(StdStr(name), ToJson(args), ctx);
+  ToolResult r;
+  try {
+    r = ToolEngine::instance().call(StdStr(name), ToJson(args), ctx);
+  } catch (const std::exception &ex) {
+    r.ok = false;
+    r.text = std::string("工具执行异常：") + ex.what();
+  } catch (...) {
+    r.ok = false;
+    r.text = "工具执行异常（未知错误）";
+  }
   return ToDict(r.toJson());
 }
 
@@ -560,15 +576,34 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
 
 #pragma mark - 多轮工具循环
 
-/// 一次提问 = 若干轮「思考 → 工具调用 → 结果」，直到模型不再请求工具。
-/// 中间消息只通过回调交给 UI，由 UI 统一落盘，避免半截历史写进库。
-/// 上限、收尾提示与 Web 版 MAX_TOOL_ROUNDS 保持一致。
+/// 外壳：C++ 异常绝不能穿过 ObjC++ 边界（会 std::terminate，表现为直接闪退）。
+/// 这里统一兜住，转成一条错误提示 + 正常收尾，UI 不会卡在「生成中」。
 - (void)runAgentLoopWithHistory:(std::vector<Message>)history
                        settings:(Settings)st
                        toolDefs:(std::vector<json>)toolDefs
                  continuePrefix:(std::string)continuePrefix
                        delegate:(id<DSBoxChatDelegate>)delegate
                          apiKey:(std::string)apiKey {
+  try {
+    [self runAgentLoopImplWithHistory:history settings:st toolDefs:toolDefs
+                       continuePrefix:continuePrefix delegate:delegate apiKey:apiKey];
+  } catch (const std::exception &ex) {
+    [self finishAgentLoopWithError:[NSString stringWithFormat:@"生成异常：%@", NSStr(ex.what())]
+                          delegate:delegate];
+  } catch (...) {
+    [self finishAgentLoopWithError:@"生成异常（未知错误）" delegate:delegate];
+  }
+}
+
+/// 一次提问 = 若干轮「思考 → 工具调用 → 结果」，直到模型不再请求工具。
+/// 中间消息只通过回调交给 UI，由 UI 统一落盘，避免半截历史写进库。
+/// 上限、收尾提示与 Web 版 MAX_TOOL_ROUNDS 保持一致。
+- (void)runAgentLoopImplWithHistory:(std::vector<Message>)history
+                           settings:(Settings)st
+                           toolDefs:(std::vector<json>)toolDefs
+                     continuePrefix:(std::string)continuePrefix
+                           delegate:(id<DSBoxChatDelegate>)delegate
+                             apiKey:(std::string)apiKey {
   const int kMaxRounds = 10;
 
   // 事件转发：C++ lambda 调用 ObjC 方法，由方法把事件放到主线程。
@@ -727,7 +762,20 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
       };
 
       int64_t t0 = util::nowMs();
-      ToolResult r = ToolEngine::instance().call(tc.name, args, ctx);
+      // 工具里可能有 nlohmann::json 的 type_error / 容器越界 / 正则异常。
+      // C++ 异常穿过 ObjC++ 边界会直接 std::terminate（SIGABRT，看起来就是「点一下闪退」），
+      // 所以必须在这里兜住，转成一次失败的工具结果继续对话。
+      ToolResult r;
+      try {
+        r = ToolEngine::instance().call(tc.name, args, ctx);
+      } catch (const std::exception &ex) {
+        r.ok = false;
+        r.text = std::string("工具执行异常：") + ex.what();
+        r.data = json{{"error", ex.what()}};
+      } catch (...) {
+        r.ok = false;
+        r.text = "工具执行异常（未知错误）";
+      }
       int64_t ms = util::nowMs() - t0;
 
       Message tm;
@@ -756,8 +804,14 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
     if (stop_.load()) break;
   }
 
-  NSError *finalErr = fatal.empty() ? nil : MakeErr(NSStr(fatal));
-  if (finalErr) emit(DSBoxStreamEventError, finalErr.localizedDescription, nil);
+  NSString *fatalMsg = fatal.empty() ? nil : NSStr(fatal);
+  [self finishAgentLoopWithError:fatalMsg delegate:delegate];
+}
+
+- (void)finishAgentLoopWithError:(NSString *)message delegate:(id<DSBoxChatDelegate>)delegate {
+  NSError *finalErr = message.length ? MakeErr(message) : nil;
+  if (finalErr) [self emitToDelegate:delegate type:DSBoxStreamEventError
+                                text:finalErr.localizedDescription data:nil];
   dispatch_async(dispatch_get_main_queue(), ^{
     id<DSBoxChatDelegate> d = delegate;
     if ([d respondsToSelector:@selector(dsboxDidFinishWithError:)])

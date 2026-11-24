@@ -38,6 +38,7 @@ NSString *const DSStrStop = @"停止";
 NSString *const DSStrNewLine = @"换行";
 NSString *const DSStrThinking = @"正在思考";
 NSString *const DSStrThinkingDone = @"已思考";
+NSString *const DSStrThinkDuration = @"已思考（用时 %ld 秒）";
 NSString *const DSStrThinkAutoFold = @"思考内容自动折叠";
 NSString *const DSStrThinkAutoFoldDesc = @"开启后，思考结束后将自动折叠思考内容";
 NSString *const DSStrRegenerate = @"再试一次";
@@ -124,6 +125,8 @@ NSString *const DSStrSystemPrompt = @"系统提示词";
 
 NSString *const DSStrSearching = @"搜索中...";
 NSString *const DSStrDeepThink = @"深度思考";
+NSString *const DSStrSmartSearch = @"智能搜索";
+NSString *const DSStrStartChat = @"开启对话";
 NSString *const DSStrSearched = @"已搜索";
 NSString *const DSStrBrowsing = @"浏览";
 NSString *const DSStrBrowseFailed = @"浏览失败";

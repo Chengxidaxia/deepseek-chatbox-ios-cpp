@@ -578,7 +578,8 @@
     _titleLabel.text = DSStrSearchFailed;
     _titleLabel.textColor = [DSTheme danger];
   } else if (sources.count) {
-    _titleLabel.text = [NSString stringWithFormat:DSStrMergeSearchCount, (int)sources.count];
+    // 格式串是 %ld（long），这里必须传 long；之前传 (int) 在 arm64 上高位是脏数据
+    _titleLabel.text = [NSString stringWithFormat:DSStrMergeSearchCount, (long)sources.count];
     _titleLabel.textColor = [DSTheme labelSecondary];
   } else {
     _titleLabel.text = DSStrToolSearchEmpty;

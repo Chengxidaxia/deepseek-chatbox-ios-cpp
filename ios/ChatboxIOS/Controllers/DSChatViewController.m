@@ -47,10 +47,12 @@
 // 视图
 @property (nonatomic, strong) UITableView *tableView;
 @property (nonatomic, strong) UIVisualEffectView *composer;
-@property (nonatomic, strong) UIScrollView *chipsScroll;
 @property (nonatomic, strong) UIButton *thinkChip;
 @property (nonatomic, strong) UIButton *searchChip;
 @property (nonatomic, strong) UIButton *modelChip;
+// 模型 id → 展示名（来自 /models，取不到就用 id 本身）
+@property (nonatomic, strong) NSMutableDictionary<NSString *, NSString *> *modelNames;
+@property (nonatomic, strong) NSArray<NSDictionary *> *modelList;
 @property (nonatomic, strong) DSAttachmentStrip *attachStrip;
 @property (nonatomic, strong) UITextView *input;
 @property (nonatomic, strong) UILabel *placeholder;
@@ -60,6 +62,9 @@
 @property (nonatomic, strong) UIButton *stopButton;
 @property (nonatomic, strong) NSLayoutConstraint *composerBottom;
 @property (nonatomic, strong) NSLayoutConstraint *attachStripHeight;
+@property (nonatomic, strong) NSLayoutConstraint *inputHeight;
+/// 空态欢迎页（没有消息时盖在表格上）
+@property (nonatomic, strong) UIView *welcomeView;
 
 // 附件 / 语音
 @property (nonatomic, strong) NSMutableArray<DSAttachmentItem *> *pending;
@@ -101,7 +106,10 @@
   self.navigationItem.largeTitleDisplayMode = UINavigationItemLargeTitleDisplayModeNever;
 
   [self buildTableView];
+  [self buildWelcome];
   [self buildComposer];
+  [self loadModelList];   // 异步取模型名，只影响 chip 上的显示，不阻塞进入会话
+  [self refreshEmptyState];
 
   self.navigationItem.rightBarButtonItem =
       [[UIBarButtonItem alloc] initWithImage:[DSIcon image:DSIconPlus size:20]
@@ -142,6 +150,52 @@
   [self.view addSubview:self.tableView];
 }
 
+/// 空态：没有消息时盖住消息区（官方新对话页的形态）
+- (void)buildWelcome {
+  UIView *v = [[UIView alloc] init];
+  v.translatesAutoresizingMaskIntoConstraints = NO;
+  v.backgroundColor = [DSTheme bgBase];
+  v.hidden = YES;
+  [self.view addSubview:v];
+  _welcomeView = v;
+
+  // 文案全部取自官方 2.7.1：startChat=开启对话、inputAIAlert=回答由 AI 生成，仅供参考
+  UILabel *title = [[UILabel alloc] init];
+  title.translatesAutoresizingMaskIntoConstraints = NO;
+  title.text = DSStrStartChat;
+  title.font = [UIFont systemFontOfSize:22 weight:UIFontWeightSemibold];
+  title.textColor = [DSTheme labelPrimary];
+  title.textAlignment = NSTextAlignmentCenter;
+
+  UILabel *tip = [[UILabel alloc] init];
+  tip.translatesAutoresizingMaskIntoConstraints = NO;
+  tip.text = DSStrAIAlert;
+  tip.font = [UIFont systemFontOfSize:13];
+  tip.textColor = [DSTheme labelTertiary];
+  tip.textAlignment = NSTextAlignmentCenter;
+  tip.numberOfLines = 0;
+
+  [v addSubview:title];
+  [v addSubview:tip];
+
+  [NSLayoutConstraint activateConstraints:@[
+    [v.leadingAnchor constraintEqualToAnchor:self.tableView.leadingAnchor],
+    [v.trailingAnchor constraintEqualToAnchor:self.tableView.trailingAnchor],
+    [v.topAnchor constraintEqualToAnchor:self.tableView.topAnchor],
+    [v.bottomAnchor constraintEqualToAnchor:self.tableView.bottomAnchor],
+    [title.centerXAnchor constraintEqualToAnchor:v.centerXAnchor],
+    [title.centerYAnchor constraintEqualToAnchor:v.centerYAnchor constant:-24],
+    [title.leadingAnchor constraintGreaterThanOrEqualToAnchor:v.leadingAnchor constant:24],
+    [tip.topAnchor constraintEqualToAnchor:title.bottomAnchor constant:10],
+    [tip.leadingAnchor constraintEqualToAnchor:v.leadingAnchor constant:32],
+    [tip.trailingAnchor constraintEqualToAnchor:v.trailingAnchor constant:-32],
+  ]];
+}
+
+- (void)refreshEmptyState {
+  self.welcomeView.hidden = self.turns.count > 0;
+}
+
 - (void)buildComposer {
   UIBlurEffect *blur = [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemChromeMaterial];
   _composer = [[UIVisualEffectView alloc] initWithEffect:blur];
@@ -153,21 +207,17 @@
   hairline.backgroundColor = [DSTheme borderL2];
   [_composer.contentView addSubview:hairline];
 
-  // ---- 上方开关条：深度思考 / 联网搜索 / 模型 ----
+  // ---- 开关 chips：深度思考 / 智能搜索 / 模型 ----
+  // 文案取自官方 2.7.1：messageR1Button=深度思考、messageSearchButton=智能搜索
   _thinkChip = [self chipButtonWithTitle:DSStrDeepThink icon:DSIconBrain action:@selector(toggleThinking)];
-  _searchChip = [self chipButtonWithTitle:@"联网搜索" icon:DSIconSearch action:@selector(toggleSearch)];
+  _searchChip = [self chipButtonWithTitle:DSStrSmartSearch icon:DSIconSearch action:@selector(toggleSearch)];
   _modelChip = [self chipButtonWithTitle:DSStrModelDefault icon:DSIconLightning action:@selector(modelTapped)];
-
-  UIStackView *chips = [[UIStackView alloc] initWithArrangedSubviews:@[_thinkChip, _searchChip, _modelChip]];
-  chips.translatesAutoresizingMaskIntoConstraints = NO;
-  chips.axis = UILayoutConstraintAxisHorizontal;
-  chips.spacing = 8;
-
-  _chipsScroll = [[UIScrollView alloc] init];
-  _chipsScroll.translatesAutoresizingMaskIntoConstraints = NO;
-  _chipsScroll.showsHorizontalScrollIndicator = NO;
-  [_chipsScroll addSubview:chips];
-  [_composer.contentView addSubview:_chipsScroll];
+  // 模型名长度不可控（/models 返回什么就显示什么），允许压缩并截断，别把发送钮挤出屏幕
+  _modelChip.titleLabel.lineBreakMode = NSLineBreakByTruncatingTail;
+  [_modelChip setContentCompressionResistancePriority:UILayoutPriorityDefaultLow
+                                             forAxis:UILayoutConstraintAxisHorizontal];
+  [_modelChip setContentHuggingPriority:UILayoutPriorityDefaultLow
+                                forAxis:UILayoutConstraintAxisHorizontal];
 
   // ---- 附件条 ----
   _attachStrip = [[DSAttachmentStrip alloc] initWithFrame:CGRectZero];
@@ -180,34 +230,25 @@
   };
   [_composer.contentView addSubview:_attachStrip];
 
-  // ---- 附件按钮 ----
-  _attachButton = [UIButton buttonWithType:UIButtonTypeSystem];
-  _attachButton.translatesAutoresizingMaskIntoConstraints = NO;
-  [_attachButton setImage:[DSIcon image:DSIconPlus size:22] forState:UIControlStateNormal];
-  _attachButton.tintColor = [DSTheme labelSecondary];
-  _attachButton.layer.cornerRadius = 16;
-  [_attachButton addTarget:self action:@selector(attachTapped) forControlEvents:UIControlEventTouchUpInside];
-
-  // ---- 输入框 ----
-  UIView *field = [[UIView alloc] init];
-  field.translatesAutoresizingMaskIntoConstraints = NO;
-  field.backgroundColor = [DSTheme bgLayer1];
-  field.layer.cornerRadius = 20;
-  field.layer.cornerCurve = kCACornerCurveContinuous;
-  field.layer.borderWidth = 1;
-  field.layer.borderColor = [DSTheme borderL2].CGColor;
-  field.tag = 0x5E1D;
+  // ---- 输入容器 ----
+  // 官方 InputAreaView 是「一个圆角框里上下两行」：正文在上，工具行在下（左 chips、右按钮），
+  // 不是「chips 在外面、输入框是个细条」。这里照这个结构重排。
+  UIView *box = [[UIView alloc] init];
+  box.translatesAutoresizingMaskIntoConstraints = NO;
+  box.backgroundColor = [DSTheme bgHover];   // 官方是浅灰填充，没有描边
+  box.layer.cornerRadius = 22;
+  box.layer.cornerCurve = kCACornerCurveContinuous;
 
   _input = [[UITextView alloc] init];
   _input.translatesAutoresizingMaskIntoConstraints = NO;
   _input.font = [UIFont systemFontOfSize:16];
   _input.textColor = [DSTheme labelPrimary];
   _input.backgroundColor = UIColor.clearColor;
-  _input.scrollEnabled = YES;
-  _input.textContainerInset = UIEdgeInsetsMake(9, 10, 9, 10);
+  _input.scrollEnabled = NO;                 // 高度由 sizeThatFits 撑，超过上限再开滚动
+  _input.textContainerInset = UIEdgeInsetsMake(6, 4, 6, 4);
   _input.textContainer.lineFragmentPadding = 0;
   _input.delegate = self;
-  [field addSubview:_input];
+  [box addSubview:_input];
 
   _placeholder = [[UILabel alloc] init];
   _placeholder.translatesAutoresizingMaskIntoConstraints = NO;
@@ -215,25 +256,30 @@
   _placeholder.font = [UIFont systemFontOfSize:16];
   _placeholder.textColor = [DSTheme labelTertiary];
   _placeholder.userInteractionEnabled = NO;
-  [field addSubview:_placeholder];
+  [box addSubview:_placeholder];
 
-  // ---- 按住说话 ----
+  // ---- 工具行右侧：附件 / 语音 / 发送 ----
+  _attachButton = [UIButton buttonWithType:UIButtonTypeSystem];
+  _attachButton.translatesAutoresizingMaskIntoConstraints = NO;
+  [_attachButton setImage:[DSIcon image:DSIconPlus size:22] forState:UIControlStateNormal];
+  _attachButton.tintColor = [DSTheme labelSecondary];
+  [_attachButton addTarget:self action:@selector(attachTapped) forControlEvents:UIControlEventTouchUpInside];
+
   _micButton = [UIButton buttonWithType:UIButtonTypeSystem];
   _micButton.translatesAutoresizingMaskIntoConstraints = NO;
-  [_micButton setImage:[DSIcon image:DSIconMic size:22] forState:UIControlStateNormal];
+  [_micButton setImage:[DSIcon image:DSIconMic size:21] forState:UIControlStateNormal];
   _micButton.tintColor = [DSTheme labelSecondary];
   UILongPressGestureRecognizer *press =
       [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(micPressed:)];
   press.minimumPressDuration = 0.12;
   [_micButton addGestureRecognizer:press];
 
-  // ---- 发送 / 停止 ----
   _sendButton = [UIButton buttonWithType:UIButtonTypeSystem];
   _sendButton.translatesAutoresizingMaskIntoConstraints = NO;
-  [_sendButton setImage:[DSIcon image:DSIconSend size:18] forState:UIControlStateNormal];
+  [_sendButton setImage:[DSIcon image:DSIconSend size:17] forState:UIControlStateNormal];
   _sendButton.tintColor = UIColor.whiteColor;
   _sendButton.backgroundColor = [DSTheme brand];
-  _sendButton.layer.cornerRadius = 16;
+  _sendButton.layer.cornerRadius = 15;
   _sendButton.layer.cornerCurve = kCACornerCurveContinuous;
   _sendButton.enabled = NO;
   _sendButton.alpha = 0.4;
@@ -241,23 +287,33 @@
 
   _stopButton = [UIButton buttonWithType:UIButtonTypeSystem];
   _stopButton.translatesAutoresizingMaskIntoConstraints = NO;
-  [_stopButton setImage:[DSIcon image:DSIconStop size:16] forState:UIControlStateNormal];
+  [_stopButton setImage:[DSIcon image:DSIconStop size:15] forState:UIControlStateNormal];
   _stopButton.tintColor = UIColor.whiteColor;
   _stopButton.backgroundColor = [DSTheme labelPrimary];
-  _stopButton.layer.cornerRadius = 16;
+  _stopButton.layer.cornerRadius = 15;
   _stopButton.layer.cornerCurve = kCACornerCurveContinuous;
   _stopButton.hidden = YES;
   [_stopButton addTarget:self action:@selector(stop) forControlEvents:UIControlEventTouchUpInside];
 
-  [_composer.contentView addSubview:_attachButton];
-  [_composer.contentView addSubview:field];
-  [_composer.contentView addSubview:_micButton];
-  [_composer.contentView addSubview:_sendButton];
-  [_composer.contentView addSubview:_stopButton];
+  UIView *spacer = [[UIView alloc] init];
+  [spacer setContentHuggingPriority:UILayoutPriorityDefaultLow forAxis:UILayoutConstraintAxisHorizontal];
+  [spacer setContentCompressionResistancePriority:UILayoutPriorityDefaultLow
+                                          forAxis:UILayoutConstraintAxisHorizontal];
+
+  UIStackView *tools = [[UIStackView alloc] initWithArrangedSubviews:
+      @[_thinkChip, _searchChip, _modelChip, spacer, _attachButton, _micButton, _sendButton, _stopButton]];
+  tools.translatesAutoresizingMaskIntoConstraints = NO;
+  tools.axis = UILayoutConstraintAxisHorizontal;
+  tools.alignment = UIStackViewAlignmentCenter;
+  tools.spacing = 6;
+  [box addSubview:tools];
+
+  [_composer.contentView addSubview:box];
 
   _composerBottom = [_composer.bottomAnchor
       constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor];
   _attachStripHeight = [_attachStrip.heightAnchor constraintEqualToConstant:0];
+  _inputHeight = [_input.heightAnchor constraintEqualToConstant:32];
 
   [NSLayoutConstraint activateConstraints:@[
     [self.tableView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
@@ -274,75 +330,60 @@
     [hairline.topAnchor constraintEqualToAnchor:_composer.contentView.topAnchor],
     [hairline.heightAnchor constraintEqualToConstant:0.5],
 
-    [_chipsScroll.leadingAnchor constraintEqualToAnchor:_composer.contentView.leadingAnchor constant:12],
-    [_chipsScroll.trailingAnchor constraintEqualToAnchor:_composer.contentView.trailingAnchor constant:-12],
-    [_chipsScroll.topAnchor constraintEqualToAnchor:_composer.contentView.topAnchor constant:8],
-    [_chipsScroll.heightAnchor constraintEqualToConstant:30],
-    [chips.leadingAnchor constraintEqualToAnchor:_chipsScroll.contentLayoutGuide.leadingAnchor],
-    [chips.trailingAnchor constraintEqualToAnchor:_chipsScroll.contentLayoutGuide.trailingAnchor],
-    [chips.topAnchor constraintEqualToAnchor:_chipsScroll.contentLayoutGuide.topAnchor],
-    [chips.bottomAnchor constraintEqualToAnchor:_chipsScroll.contentLayoutGuide.bottomAnchor],
-    [chips.heightAnchor constraintEqualToAnchor:_chipsScroll.frameLayoutGuide.heightAnchor],
-
-    [_attachStrip.leadingAnchor constraintEqualToAnchor:_composer.contentView.leadingAnchor constant:14],
-    [_attachStrip.trailingAnchor constraintEqualToAnchor:_composer.contentView.trailingAnchor constant:-14],
-    [_attachStrip.topAnchor constraintEqualToAnchor:_chipsScroll.bottomAnchor constant:6],
+    [_attachStrip.leadingAnchor constraintEqualToAnchor:_composer.contentView.leadingAnchor constant:16],
+    [_attachStrip.trailingAnchor constraintEqualToAnchor:_composer.contentView.trailingAnchor constant:-16],
+    [_attachStrip.topAnchor constraintEqualToAnchor:_composer.contentView.topAnchor constant:6],
     _attachStripHeight,
 
-    [_attachButton.leadingAnchor constraintEqualToAnchor:_composer.contentView.leadingAnchor constant:8],
-    [_attachButton.topAnchor constraintEqualToAnchor:_attachStrip.bottomAnchor constant:6],
-    [_attachButton.widthAnchor constraintEqualToConstant:32],
-    [_attachButton.heightAnchor constraintEqualToConstant:32],
+    // 输入容器：左右各 12，底部留 8（贴安全区）
+    [box.leadingAnchor constraintEqualToAnchor:_composer.contentView.leadingAnchor constant:12],
+    [box.trailingAnchor constraintEqualToAnchor:_composer.contentView.trailingAnchor constant:-12],
+    [box.topAnchor constraintEqualToAnchor:_attachStrip.bottomAnchor constant:6],
+    [box.bottomAnchor constraintEqualToAnchor:_composer.contentView.bottomAnchor constant:-8],
 
-    [field.topAnchor constraintEqualToAnchor:_attachStrip.bottomAnchor constant:6],
-    [field.leadingAnchor constraintEqualToAnchor:_attachButton.trailingAnchor constant:2],
-    [field.trailingAnchor constraintEqualToAnchor:_micButton.leadingAnchor constant:-6],
-    [field.bottomAnchor constraintEqualToAnchor:_composer.contentView.bottomAnchor constant:-8],
-    [field.heightAnchor constraintGreaterThanOrEqualToConstant:38],
-    [field.heightAnchor constraintLessThanOrEqualToConstant:132],
+    [_input.leadingAnchor constraintEqualToAnchor:box.leadingAnchor constant:8],
+    [_input.trailingAnchor constraintEqualToAnchor:box.trailingAnchor constant:-8],
+    [_input.topAnchor constraintEqualToAnchor:box.topAnchor constant:6],
+    _inputHeight,
 
-    [_input.leadingAnchor constraintEqualToAnchor:field.leadingAnchor constant:4],
-    [_input.trailingAnchor constraintEqualToAnchor:field.trailingAnchor constant:-4],
-    [_input.topAnchor constraintEqualToAnchor:field.topAnchor constant:1],
-    [_input.bottomAnchor constraintEqualToAnchor:field.bottomAnchor constant:-1],
+    [_placeholder.leadingAnchor constraintEqualToAnchor:_input.leadingAnchor constant:4],
+    [_placeholder.topAnchor constraintEqualToAnchor:_input.topAnchor constant:6],
 
-    [_placeholder.leadingAnchor constraintEqualToAnchor:_input.leadingAnchor constant:10],
-    [_placeholder.topAnchor constraintEqualToAnchor:_input.topAnchor constant:9],
+    [tools.leadingAnchor constraintEqualToAnchor:box.leadingAnchor constant:6],
+    [tools.trailingAnchor constraintEqualToAnchor:box.trailingAnchor constant:-6],
+    [tools.topAnchor constraintEqualToAnchor:_input.bottomAnchor constant:2],
+    [tools.bottomAnchor constraintEqualToAnchor:box.bottomAnchor constant:-6],
+    [tools.heightAnchor constraintEqualToConstant:30],
 
-    [_micButton.trailingAnchor constraintEqualToAnchor:_sendButton.leadingAnchor constant:-2],
-    [_micButton.centerYAnchor constraintEqualToAnchor:field.centerYAnchor],
+    [_attachButton.widthAnchor constraintEqualToConstant:30],
+    [_attachButton.heightAnchor constraintEqualToConstant:30],
     [_micButton.widthAnchor constraintEqualToConstant:30],
     [_micButton.heightAnchor constraintEqualToConstant:30],
-
-    [_sendButton.trailingAnchor constraintEqualToAnchor:_composer.contentView.trailingAnchor constant:-12],
-    [_sendButton.centerYAnchor constraintEqualToAnchor:field.centerYAnchor],
-    [_sendButton.widthAnchor constraintEqualToConstant:32],
-    [_sendButton.heightAnchor constraintEqualToConstant:32],
-    [_stopButton.centerXAnchor constraintEqualToAnchor:_sendButton.centerXAnchor],
-    [_stopButton.centerYAnchor constraintEqualToAnchor:_sendButton.centerYAnchor],
-    [_stopButton.widthAnchor constraintEqualToConstant:32],
-    [_stopButton.heightAnchor constraintEqualToConstant:32],
+    [_sendButton.widthAnchor constraintEqualToConstant:30],
+    [_sendButton.heightAnchor constraintEqualToConstant:30],
+    [_stopButton.widthAnchor constraintEqualToConstant:30],
+    [_stopButton.heightAnchor constraintEqualToConstant:30],
   ]];
 
   [self refreshChips];
   [self updateSendState];
 }
 
+/// chips 是「输入框内的小胶囊」：未选中浅灰填充，选中品牌色淡底 + 品牌色字（官方同款）
 - (UIButton *)chipButtonWithTitle:(NSString *)title icon:(DSIconName)icon action:(SEL)action {
   UIButton *b = [UIButton buttonWithType:UIButtonTypeSystem];
   b.translatesAutoresizingMaskIntoConstraints = NO;
-  b.titleLabel.font = [UIFont systemFontOfSize:12.5 weight:UIFontWeightMedium];
+  b.titleLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
+  b.titleLabel.lineBreakMode = NSLineBreakByTruncatingTail;
   [b setTitle:title forState:UIControlStateNormal];
-  [b setImage:[DSIcon image:icon size:14] forState:UIControlStateNormal];
-  b.imageEdgeInsets = UIEdgeInsetsMake(0, -4, 0, 4);
-  b.titleEdgeInsets = UIEdgeInsetsMake(0, 4, 0, -4);
-  b.contentEdgeInsets = UIEdgeInsetsMake(0, 10, 0, 10);
-  b.layer.cornerRadius = 15;
-  b.layer.borderWidth = 1;
+  [b setImage:[DSIcon image:icon size:13] forState:UIControlStateNormal];
+  b.imageEdgeInsets = UIEdgeInsetsMake(0, -3, 0, 3);
+  b.titleEdgeInsets = UIEdgeInsetsMake(0, 3, 0, -3);
+  b.contentEdgeInsets = UIEdgeInsetsMake(0, 8, 0, 8);
+  b.layer.cornerRadius = 13;
   b.layer.cornerCurve = kCACornerCurveContinuous;
   [b addTarget:self action:action forControlEvents:UIControlEventTouchUpInside];
-  [b.heightAnchor constraintEqualToConstant:30].active = YES;
-  [b setContentHuggingPriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
+  [b.heightAnchor constraintEqualToConstant:26].active = YES;
   return b;
 }
 
@@ -359,12 +400,10 @@
 - (void)styleChip:(UIButton *)chip on:(BOOL)on {
   if (on) {
     chip.backgroundColor = [[DSTheme brand] colorWithAlphaComponent:0.12];
-    chip.layer.borderColor = [[DSTheme brand] colorWithAlphaComponent:0.45].CGColor;
     [chip setTitleColor:[DSTheme brand] forState:UIControlStateNormal];
     chip.tintColor = [DSTheme brand];
   } else {
-    chip.backgroundColor = [DSTheme bgHover];
-    chip.layer.borderColor = [DSTheme borderL2].CGColor;
+    chip.backgroundColor = [DSTheme bgActive];
     [chip setTitleColor:[DSTheme labelSecondary] forState:UIControlStateNormal];
     chip.tintColor = [DSTheme labelSecondary];
   }
@@ -373,18 +412,35 @@
 - (void)refreshChips {
   NSDictionary *s = [[DSBoxService shared] settings];
   NSString *model = s[@"model"] ?: @"deepseek-flash";
-  DSIconName icon = DSIconLightning;
-  NSString *name = DSStrModelDefault;
-  if ([model containsString:@"reasoner"] || [model containsString:@"expert"]) {
-    icon = DSIconBrain;
-    name = DSStrModelExpert;
-  } else if ([model containsString:@"vision"] || [model containsString:@"image"]) {
-    icon = DSIconPhoto;
-    name = DSStrModelVision;
-  }
-  [_modelChip setTitle:name forState:UIControlStateNormal];
-  [_modelChip setImage:[DSIcon image:icon size:14] forState:UIControlStateNormal];
+  // 官方 2.7.1 已经取消「快速/专家/识图」三档，这里只显示当前模型的展示名，
+  // 点开是真实模型列表（/models，取不到就用内置兜底）。
+  NSString *title = self.modelNames[model] ?: model;
+  [_modelChip setTitle:title forState:UIControlStateNormal];
+  [_modelChip setImage:[DSIcon image:DSIconLightning size:13] forState:UIControlStateNormal];
   [self applyChipStyles];
+}
+
+/// 拉一次模型列表，缓存 id→展示名，顺便把 chip 标题刷新成真实模型名
+- (void)loadModelList {
+  __weak __typeof(self) ws = self;
+  dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+    NSError *err = nil;
+    NSArray<NSDictionary *> *models = [[DSBoxService shared] listModelsWithError:&err];
+    dispatch_async(dispatch_get_main_queue(), ^{
+      if (!models.count) return;
+      NSMutableDictionary *names = [NSMutableDictionary dictionary];
+      for (NSDictionary *m in models) {
+        if (![m isKindOfClass:NSDictionary.class]) continue;
+        NSString *mid = [m[@"id"] isKindOfClass:NSString.class] ? m[@"id"] : nil;
+        if (!mid.length) continue;
+        NSString *name = [m[@"name"] isKindOfClass:NSString.class] && [m[@"name"] length] ? m[@"name"] : mid;
+        names[mid] = name;
+      }
+      ws.modelList = models;
+      ws.modelNames = names;
+      [ws refreshChips];
+    });
+  });
 }
 
 #pragma mark - 键盘
@@ -514,7 +570,13 @@
 
 - (void)finishWithError:(NSError *)error {
   self.streaming = NO;
-  for (NSMutableDictionary *r in self.streamRounds) r[@"streaming"] = @NO;
+  for (NSMutableDictionary *r in self.streamRounds) {
+    r[@"streaming"] = @NO;
+    // 中途停止/出错时思考还没结束，也要把计时封口，否则停在「正在思考」
+    if (r[@"thinkStart"] && !r[@"thinkEnd"]) {
+      r[@"thinkEnd"] = @([[NSDate date] timeIntervalSince1970]);
+    }
+  }
   NSMutableArray *rounds = self.streamRounds;
   self.streamRounds = [NSMutableArray array];
   self.continueTargetIdx = -1;
@@ -586,19 +648,46 @@
 - (void)modelTapped {
   NSDictionary *s = [[DSBoxService shared] settings];
   NSString *cur = s[@"model"] ?: @"deepseek-flash";
+
+  // 已经拉过就直接弹；没拉过就先去取（取不到会用内置兜底，不会空着）
+  if (self.modelList.count) { [self presentModelSheetWithList:self.modelList current:cur]; return; }
+  __weak __typeof(self) ws = self;
+  dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+    NSError *err = nil;
+    NSArray<NSDictionary *> *models = [[DSBoxService shared] listModelsWithError:&err];
+    dispatch_async(dispatch_get_main_queue(), ^{
+      if (models.count) {
+        NSMutableDictionary *names = [NSMutableDictionary dictionary];
+        for (NSDictionary *m in models) {
+          NSString *mid = [m[@"id"] isKindOfClass:NSString.class] ? m[@"id"] : nil;
+          if (!mid.length) continue;
+          names[mid] = ([m[@"name"] isKindOfClass:NSString.class] && [m[@"name"] length]) ? m[@"name"] : mid;
+        }
+        ws.modelList = models;
+        ws.modelNames = names;
+        [ws presentModelSheetWithList:models current:cur];
+      } else {
+        [ws toast:@"取不到模型列表，请检查网络或 API Key"];
+      }
+    });
+  });
+}
+
+- (void)presentModelSheetWithList:(NSArray<NSDictionary *> *)models current:(NSString *)cur {
   UIAlertController *sheet = [UIAlertController alertControllerWithTitle:DSStrModelSwitch
       message:nil preferredStyle:UIAlertControllerStyleActionSheet];
-  NSArray<NSArray<NSString *> *> *models = @[
-    @[DSStrModelDefault, @"deepseek-flash", DSStrModelDefaultDesc],
-    @[DSStrModelExpert, @"deepseek-reasoner", DSStrModelExpertDesc],
-    @[DSStrModelVision, @"deepseek-vision", DSStrModelVisionDesc],
-  ];
   __weak __typeof(self) ws = self;
-  for (NSArray<NSString *> *m in models) {
-    NSString *title = [cur isEqualToString:m[1]] ? [NSString stringWithFormat:@"✓ %@", m[0]] : m[0];
+  for (NSDictionary *m in models) {
+    if (![m isKindOfClass:NSDictionary.class]) continue;
+    NSString *mid = [m[@"id"] isKindOfClass:NSString.class] ? m[@"id"] : nil;
+    if (!mid.length) continue;
+    NSString *name = ([m[@"name"] isKindOfClass:NSString.class] && [m[@"name"] length]) ? m[@"name"] : mid;
+    BOOL on = [cur isEqualToString:mid];
+    NSString *title = on ? [NSString stringWithFormat:@"✓ %@", name] : name;
+
     [sheet addAction:[UIAlertAction actionWithTitle:title style:UIAlertActionStyleDefault
                                             handler:^(UIAlertAction *a) {
-      [[DSBoxService shared] saveSettingsPatch:@{@"model": m[1]}];
+      [[DSBoxService shared] saveSettingsPatch:@{@"model": mid}];
       [ws refreshChips];
     }]];
   }
@@ -810,6 +899,30 @@
 
 - (void)textViewDidChange:(UITextView *)textView {
   [self updateSendState];
+  [self resizeInputIfNeeded];
+}
+
+/// 输入框跟着内容长高（官方最多约 5 行，超过就内部滚动）
+- (void)resizeInputIfNeeded {
+  static const CGFloat kMaxHeight = 120;
+  static const CGFloat kMinHeight = 32;
+  CGFloat width = self.input.bounds.size.width;
+  if (width <= 0) return;
+  CGSize fit = [self.input sizeThatFits:CGSizeMake(width, CGFLOAT_MAX)];
+  CGFloat h = MIN(MAX(fit.height, kMinHeight), kMaxHeight);
+  BOOL scroll = fit.height > kMaxHeight;
+  if (h > self.inputHeight.constant - 0.5 && h < self.inputHeight.constant + 0.5 &&
+      self.input.scrollEnabled == scroll) {
+    return;
+  }
+
+  self.inputHeight.constant = h;
+  self.input.scrollEnabled = scroll;
+  [UIView animateWithDuration:0.12 animations:^{
+    [self.view layoutIfNeeded];
+  } completion:^(BOOL done) {
+    [self scrollToBottomAnimated:NO];
+  }];
 }
 
 #pragma mark - DSBoxChatDelegate（已切主线程）
@@ -844,9 +957,16 @@
       break;
     }
     case DSBoxStreamEventContent:
+      // 官方思考头部是「已思考（用时 N 秒）」：第一个正文增量到达就算思考结束
+      if (cur && cur[@"thinkStart"] && !cur[@"thinkEnd"]) {
+        cur[@"thinkEnd"] = @([[NSDate date] timeIntervalSince1970]);
+      }
       [self appendText:text to:cur key:@"content"];
       break;
     case DSBoxStreamEventReasoning:
+      if (cur && !cur[@"thinkStart"]) {
+        cur[@"thinkStart"] = @([[NSDate date] timeIntervalSince1970]);
+      }
       [self appendText:text to:cur key:@"reasoning"];
       break;
     case DSBoxStreamEventUsage:
@@ -863,21 +983,32 @@
         [self refreshStreamRow];
       } else if (data[@"event"]) {
         // call_started / call_completed：合并进该轮的 server_tool_calls
-        NSDictionary *ev = data[@"event"];
-        NSString *kind = ev[@"type"] ?: @"";
-        NSDictionary *call = [ev[@"call"] isKindOfClass:NSDictionary.class] ? ev[@"call"] : nil;
-        if (call && ([kind isEqualToString:@"call_started"] || [kind isEqualToString:@"call_completed"])) {
+        // 注意：服务端下发的是单个对象，但不同版本/网关可能包成数组，
+        // 直接 ev[@"type"] 会对 NSArray 发 objectForKeyedSubscript: 崩掉，这里统一按 id 取。
+        id rawEv = data[@"event"];
+        NSArray *evList = nil;
+        if ([rawEv isKindOfClass:NSDictionary.class]) evList = @[rawEv];
+        else if ([rawEv isKindOfClass:NSArray.class]) evList = rawEv;
+
+        for (id item in evList) {
+          if (![item isKindOfClass:NSDictionary.class]) continue;
+          NSDictionary *ev = item;
+          NSString *kind = [ev[@"type"] isKindOfClass:NSString.class] ? ev[@"type"] : @"";
+          NSDictionary *call = [ev[@"call"] isKindOfClass:NSDictionary.class] ? ev[@"call"] : nil;
+          if (!call || !([kind isEqualToString:@"call_started"] || [kind isEqualToString:@"call_completed"])) continue;
+
           NSMutableArray *arr = [cur[@"server_tool_calls"] isKindOfClass:NSArray.class]
               ? [cur[@"server_tool_calls"] mutableCopy] : [NSMutableArray array];
           NSInteger exist = -1;
           for (NSInteger i = 0; i < (NSInteger)arr.count; i++) {
-            if ([arr[(NSUInteger)i][@"id"] isEqual:call[@"id"]]) { exist = i; break; }
+            NSDictionary *old = [arr[(NSUInteger)i] isKindOfClass:NSDictionary.class] ? arr[(NSUInteger)i] : nil;
+            if (old && [old[@"id"] isEqual:call[@"id"]]) { exist = i; break; }
           }
           if (exist >= 0) arr[(NSUInteger)exist] = call;
           else [arr addObject:call];
           cur[@"server_tool_calls"] = arr;
-          [self refreshStreamRow];
         }
+        [self refreshStreamRow];
       }
       break;
     }
@@ -893,6 +1024,11 @@
       if (![final isKindOfClass:NSDictionary.class]) break;
       NSMutableDictionary *merged = [final mutableCopy];
       merged[@"streaming"] = @NO;
+      // 服务端定稿里没有本地记的思考计时，这里带过去，否则「已思考（用时 N 秒）」会丢
+      if (cur) {
+        if (cur[@"thinkStart"]) merged[@"thinkStart"] = cur[@"thinkStart"];
+        if (cur[@"thinkEnd"]) merged[@"thinkEnd"] = cur[@"thinkEnd"];
+      }
       // 续写：服务端只回新增内容，正文要拼回原前缀，id 也保持原值（分支快照按 id 引用）
       if (cur && self.continueTargetIdx >= 0 &&
           [self.rawMessages indexOfObjectIdenticalTo:cur] == (NSUInteger)self.continueTargetIdx) {
@@ -971,6 +1107,7 @@
 - (void)rebuildTurnsAndReload {
   self.turns = [DSTurn turnsFromMessages:self.rawMessages];
   [self.tableView reloadData];
+  [self refreshEmptyState];
 }
 
 - (void)dsboxDidFinishWithError:(NSError *)error {
