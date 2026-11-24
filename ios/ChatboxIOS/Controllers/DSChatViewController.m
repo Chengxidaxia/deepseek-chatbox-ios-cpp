@@ -21,6 +21,10 @@
 #import "DSIcon.h"
 #import "DSTopBarView.h"
 #import "DSButton.h"
+#import "DSVariableBlurView.h"
+#import "DSBackToBottomButton.h"
+#import "DSOperationView.h"
+#import "DSToggleButtonGroup.h"
 
 #import <PhotosUI/PhotosUI.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
@@ -52,6 +56,14 @@
 @property (nonatomic, strong) UIVisualEffectView *composer;
 @property (nonatomic, strong) DSButton *thinkChip;
 @property (nonatomic, strong) DSButton *searchChip;
+// 官方同名组件：边缘渐隐 / 回到底部 / 输入区运行态
+@property (nonatomic, strong) DSVariableBlurView *topFade;
+@property (nonatomic, strong) DSVariableBlurView *bottomFade;
+@property (nonatomic, strong) DSBackToBottomButton *backToBottom;
+@property (nonatomic, strong) DSOperationView *reasoningOp;
+@property (nonatomic, strong) DSOperationView *searchOp;
+/// 官方 ToggleButtonGroup：把两个开关收进一个分组容器，而不是直接塞进工具条
+@property (nonatomic, strong) DSToggleButtonGroup *toggleGroup;
 /// 官方顶栏（自绘，不是 UINavigationBar）：☰ / 模型名⌄ / ＋
 @property (nonatomic, strong) DSTopBarView *topBar;
 // 模型 id → 展示名（来自 /models，取不到就用 id 本身）
@@ -212,8 +224,34 @@
   tip.textAlignment = NSTextAlignmentCenter;
   tip.numberOfLines = 0;
 
+  // 官方 MessageViewController.EmptyView 里还有 PromptSuggestionView.TemplateButton：
+  // 一组建议问题，点一下填进输入框。官方模板由服务端下发，取不到时给这几条通用兜底。
+  NSArray<NSString *> *templates = @[
+    @"帮我写一份本周工作周报",
+    @"解释一下这段代码在做什么",
+    @"把下面这段话翻译成英文",
+  ];
+  UIStackView *suggestions = [[UIStackView alloc] initWithArrangedSubviews:@[]];
+  suggestions.translatesAutoresizingMaskIntoConstraints = NO;
+  suggestions.axis = UILayoutConstraintAxisVertical;
+  suggestions.spacing = 8;
+  suggestions.alignment = UIStackViewAlignmentCenter;
+  for (NSString *t in templates) {
+    DSButtonConfig *cfg = [DSButtonConfig style:DSButtonStyleOutline icon:0 title:t];
+    cfg.iconSize = 0;                 // 只要文字，不要图标
+    cfg.font = [UIFont systemFontOfSize:14];
+    cfg.hPadding = 14;
+    cfg.vPadding = 8;
+    cfg.cornerRadius = 18;
+    cfg.minSize = CGSizeMake(0, 36);
+    DSButton *b = [DSButton buttonWithConfig:cfg];
+    [b addTarget:self action:@selector(suggestionTapped:) forControlEvents:UIControlEventTouchUpInside];
+    [suggestions addArrangedSubview:b];
+  }
+
   [v addSubview:title];
   [v addSubview:tip];
+  [v addSubview:suggestions];
 
   [NSLayoutConstraint activateConstraints:@[
     [v.leadingAnchor constraintEqualToAnchor:self.tableView.leadingAnchor],
@@ -221,12 +259,26 @@
     [v.topAnchor constraintEqualToAnchor:self.tableView.topAnchor],
     [v.bottomAnchor constraintEqualToAnchor:self.tableView.bottomAnchor],
     [title.centerXAnchor constraintEqualToAnchor:v.centerXAnchor],
-    [title.centerYAnchor constraintEqualToAnchor:v.centerYAnchor constant:-24],
+    [title.centerYAnchor constraintEqualToAnchor:v.centerYAnchor constant:-56],
     [title.leadingAnchor constraintGreaterThanOrEqualToAnchor:v.leadingAnchor constant:24],
     [tip.topAnchor constraintEqualToAnchor:title.bottomAnchor constant:10],
     [tip.leadingAnchor constraintEqualToAnchor:v.leadingAnchor constant:32],
     [tip.trailingAnchor constraintEqualToAnchor:v.trailingAnchor constant:-32],
+
+    [suggestions.topAnchor constraintEqualToAnchor:tip.bottomAnchor constant:22],
+    [suggestions.centerXAnchor constraintEqualToAnchor:v.centerXAnchor],
+    [suggestions.leadingAnchor constraintGreaterThanOrEqualToAnchor:v.leadingAnchor constant:24],
+    [suggestions.trailingAnchor constraintLessThanOrEqualToAnchor:v.trailingAnchor constant:-24],
   ]];
+}
+
+/// 点建议问题：填进输入框并聚焦，让用户还能改 —— 不直接发出去。
+- (void)suggestionTapped:(DSButton *)sender {
+  NSString *t = sender.config.title;
+  if (!t.length) return;
+  self.input.text = t;
+  [self textViewDidChange:self.input];
+  [self.input becomeFirstResponder];
 }
 
 - (void)refreshEmptyState {
@@ -254,6 +306,14 @@
   // 图标用官方的：深度思考 = toggle_think.json 的双菱形环，智能搜索 = toggle_search.json 的地球
   _thinkChip = [self chipButtonWithTitle:DSStrDeepThink icon:DSIconThink action:@selector(toggleThinking)];
   _searchChip = [self chipButtonWithTitle:DSStrSmartSearch icon:DSIconGlobe action:@selector(toggleSearch)];
+
+  // 官方 InputAreaView 下这两个是独立视图（SearchOperationView / ReasoningOperationView），
+  // 跑起来时顶替 chips 的位置，带文案和计时 —— 不是「把 chip 换个颜色」。
+  _reasoningOp = [[DSOperationView alloc] initWithKind:DSOperationKindReasoning];
+  _searchOp = [[DSOperationView alloc] initWithKind:DSOperationKindSearch];
+
+  // 两个开关归到一组（官方 ToggleButtonGroup），组内间距由容器统一给
+  _toggleGroup = [[DSToggleButtonGroup alloc] initWithButtons:@[_thinkChip, _searchChip]];
 
   // ---- 附件条 ----
   _attachStrip = [[DSAttachmentStrip alloc] initWithFrame:CGRectZero];
@@ -344,8 +404,11 @@
   [spacer setContentCompressionResistancePriority:UILayoutPriorityDefaultLow
                                           forAxis:UILayoutConstraintAxisHorizontal];
 
+  // 顺序照官方 ActionAreaView：运行态在前，chips 其次，右侧操作区靠后。
+  // 运行态默认 hidden，UIStackView 会把 hidden 的 arrangedSubview 当 0 尺寸处理。
   UIStackView *tools = [[UIStackView alloc] initWithArrangedSubviews:
-      @[_thinkChip, _searchChip, spacer, _attachButton, _micButton, _sendButton, _stopButton]];
+      @[_reasoningOp, _searchOp, _toggleGroup, spacer,
+        _attachButton, _micButton, _sendButton, _stopButton]];
   tools.translatesAutoresizingMaskIntoConstraints = NO;
   tools.axis = UILayoutConstraintAxisHorizontal;
   tools.alignment = UIStackViewAlignmentCenter;
@@ -409,9 +472,73 @@
     [_stopButton.heightAnchor constraintEqualToConstant:30],
   ]];
 
+  [self buildEdgeEffects];
   [self refreshChips];
   [self updateSendState];
 }
+
+/// 官方 `VariableBlurView` + `BackToBottomButton` 的落地。
+///
+/// 渐隐带贴在「顶栏下沿」和「输入区上沿」：内容滚到这两处时淡出，
+/// 而不是被一条硬边切掉。注意这**不是**给输入框加毛玻璃 ——
+/// 官方输入框本身是纯色浅灰圆角，糊只发生在交界处。
+- (void)buildEdgeEffects {
+  _topFade = [[DSVariableBlurView alloc] initWithEdge:DSVariableBlurEdgeTop];
+  [self.view addSubview:_topFade];
+
+  _bottomFade = [[DSVariableBlurView alloc] initWithEdge:DSVariableBlurEdgeBottom];
+  [self.view addSubview:_bottomFade];
+
+  _backToBottom = [[DSBackToBottomButton alloc] initWithFrame:CGRectZero];
+  __weak __typeof(self) ws = self;
+  _backToBottom.onTap = ^{ [ws scrollToBottomAnimated:YES]; };
+  [self.view addSubview:_backToBottom];
+
+  [NSLayoutConstraint activateConstraints:@[
+    [_topFade.topAnchor constraintEqualToAnchor:_topBar.bottomAnchor],
+    [_topFade.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+    [_topFade.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
+    [_topFade.heightAnchor constraintEqualToConstant:28],
+
+    [_bottomFade.bottomAnchor constraintEqualToAnchor:_composer.topAnchor],
+    [_bottomFade.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+    [_bottomFade.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
+    [_bottomFade.heightAnchor constraintEqualToConstant:28],
+
+    // 浮在输入区上方、右侧；不挡发送键（发送键在输入框内部右下）
+    [_backToBottom.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-16],
+    [_backToBottom.bottomAnchor constraintEqualToAnchor:_composer.topAnchor constant:-12],
+  ]];
+}
+
+/// 离底部超过一屏的 1/6 就浮出「回到底部」。
+/// 阈值同时有绝对下限 120pt：短对话（一屏装得下）不该出现这个钮。
+- (void)updateBackToBottomVisibility {
+  if (self.turns.count == 0) {
+    [self.backToBottom setVisible:NO animated:YES];
+    return;
+  }
+  CGFloat h = self.tableView.bounds.size.height;
+  if (h <= 0) return;
+  CGFloat offset = self.tableView.contentOffset.y;
+  CGFloat inset = self.tableView.adjustedContentInset.top + self.tableView.adjustedContentInset.bottom;
+  CGFloat maxOffset = MAX(0, self.tableView.contentSize.height + inset - h);
+  BOOL far = (maxOffset - offset) > MAX(120.0, h * 0.18);
+  [self.backToBottom setVisible:far animated:YES];
+}
+
+- (void)scrollViewDidScroll:(UIScrollView *)scrollView {
+  if (scrollView != self.tableView) return;
+  [self updateBackToBottomVisibility];
+}
+
+/// 流式结束时把所有运行态收干净。漏掉这一步的话，出错或中断后
+/// 输入区会一直挂着「正在深度思考（12 秒）」不动。
+- (void)stopOperationViews {
+  [self.reasoningOp stop];
+  [self.searchOp stop];
+}
+
 
 /// chips 是「输入框内的小胶囊」：未选中浅灰填充，选中品牌色淡底 + 品牌色字（官方同款）
 /// 尺寸按官方量：图标 16×16（官方 Assets 里 toggle 系列就是 16 画布）、胶囊高 30
@@ -1021,12 +1148,15 @@
       if (cur && cur[@"thinkStart"] && !cur[@"thinkEnd"]) {
         cur[@"thinkEnd"] = @([[NSDate date] timeIntervalSince1970]);
       }
+      // 正文开始输出就说明思考结束，运行态收起（官方 ReasoningOperationView 同逻辑）
+      if (self.reasoningOp.running) [self.reasoningOp stop];
       [self appendText:text to:cur key:@"content"];
       break;
     case DSBoxStreamEventReasoning:
       if (cur && !cur[@"thinkStart"]) {
         cur[@"thinkStart"] = @([[NSDate date] timeIntervalSince1970]);
       }
+      [self.reasoningOp start];
       [self appendText:text to:cur key:@"reasoning"];
       break;
     case DSBoxStreamEventUsage:
@@ -1110,11 +1240,23 @@
       break;
     }
     case DSBoxStreamEventToolStart: {
-      // 卡片已随 tool_calls 出现（running 态），这里只需滚到底
+      // 卡片已随 tool_calls 出现（running 态），这里只需滚到底。
+      // 顺手把「正在搜索」挂上：官方 SearchOperationView 就是在工具跑起来时出现的。
+      NSString *kind = [data[@"kind"] isKindOfClass:NSString.class] ? data[@"kind"] : @"";
+      NSString *name = [data[@"name"] isKindOfClass:NSString.class] ? data[@"name"] : @"";
+      BOOL searching = [kind containsString:@"search"] || [kind containsString:@"fetch"] ||
+                       [name containsString:@"search"] || [name containsString:@"fetch"] ||
+                       [name containsString:@"http_request"];
+      if (searching) {
+        NSString *q = [data[@"query"] isKindOfClass:NSString.class] ? data[@"query"] : @"";
+        self.searchOp.text = q.length ? [NSString stringWithFormat:@"正在搜索 %@", q] : nil;
+        [self.searchOp start];
+      }
       [self scrollToBottomAnimated:YES];
       break;
     }
     case DSBoxStreamEventToolEnd: {
+      if (self.searchOp.running) [self.searchOp stop];
       NSMutableDictionary *tool = [@{
         @"id": data[@"messageId"] ?: [[NSUUID UUID] UUIDString],
         @"role": @"tool",
@@ -1137,6 +1279,7 @@
       if (cur && text.length) cur[@"refusal"] = text;
       break;
     case DSBoxStreamEventError:
+      [self stopOperationViews];
       if (text.length) [self showError:text];
       break;
     default:
@@ -1171,6 +1314,7 @@
 }
 
 - (void)dsboxDidFinishWithError:(NSError *)error {
+  [self stopOperationViews];
   [self finishWithError:error];
 }
 

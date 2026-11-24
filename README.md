@@ -57,100 +57,24 @@ ctest --test-dir .build/native --output-on-failure
 
 ## 版本号与构建计数
 
-### 版本号是两个字段，不是一个
+口径一句话：**只要发起过一次编译，就算一次构建，成功失败都算。** 本机编译和云编译各算各的。
 
 | 字段 | 当前值 | 谁提供 | 语义 |
 |---|---|---|---|
-| `CFBundleShortVersionString` | `1.12.5` | `MARKETING_VERSION`（pbxproj，Release/Debug 各一处） | 营销版本，给人看的，功能层面变了才动 |
-| `CFBundleVersion` | `122` | `CURRENT_PROJECT_VERSION`，CI 每次编译注入 | 构建号 = **累计编译次数**，每次编译必变 |
+| `CFBundleShortVersionString` | `1.12.5` | `MARKETING_VERSION` | 营销版本，功能层面变了才动 |
+| `CFBundleVersion` | `122` | `CURRENT_PROJECT_VERSION`，CI 每次编译注入 | 构建号 = **累计编译次数** |
 
-两个都走构建设置引用，`Info.plist` 里写的是变量、不是字面量：
-
-```
-CFBundleShortVersionString = $(MARKETING_VERSION)
-CFBundleVersion            = $(CURRENT_PROJECT_VERSION)
-```
-
-> **坑**：这两行要是写成字面量，`xcodebuild CURRENT_PROJECT_VERSION=101` 完全不生效，
-> 包内版本号永远是 plist 里那个死数字。当时 tag 是 `build101`、包内还是 `100`，
-> 查了很久才发现是 plist 没引用构建设置。
-
-### tag 命名
-
-`v<营销版本>.build<构建号>`，例如 `v1.12.5.build101`。
-
-tag 构建的号**直接取 tag 名里的 `.buildN`**，不再累加 —— tag 是快照，
-不能因为「重新跑一次 CI」就让号变掉。
-
-### 两个仓库共用一个号
-
-Web 版（`deepseek-chatbox`）和本仓库共用同一套编译计数，不是各编各的：
-Web 版最后一个是 `v1.12.4.build87`，本仓库从 **88** 接着往下数。
-营销版本之所以跳到 `1.12.5`，是因为 iOS 是完全独立的实现，不是 Web 版的补丁。
-
-### 三者必须一致
-
-包内 `CFBundleVersion`、`base + build-events.jsonl 的行数`、tag 里的 `.buildN`，
-**永远是同一个数**。校验方法：
+`build = build-count.json 的 base + build-events.jsonl 的行数`。本机与云端各写各的行，
+`.gitattributes` 里设了 `merge=union`，所以两边同时推进时号 +2 而不是被覆盖。
 
 ```bash
-python scripts/bump-build.py --show
-# build=122  base=110  events=12  since=2026-11-24 15:40 +0800
-
-# 包内版本号（不依赖 plutil / unzip，Windows 上也能跑）
-python -c "import zipfile,plistlib;z=zipfile.ZipFile('dist/ChatboxIOS-adhoc.ipa');\
-n=[x for x in z.namelist() if x.endswith('.app/Info.plist')][0];\
-i=plistlib.loads(z.read(n));print(i['CFBundleShortVersionString'],i['CFBundleVersion'])"
-# 1.12.5 122
+python scripts/bump-build.py --show    # build=122  base=110  events=12
 ```
 
-对不上就是有一步没写回去：要么 CI 的 `Record build count` 没提交，要么 plist 又写回字面量了。
-
-### 构建号怎么记
-
-口径：**只要发起过一次编译，就算一次构建**，成功失败都算。本机编译和云编译**各算各的**——
-同一天里本机编了 1 次、云端编了 1 次，那就是 +2。
-
-| 触发点 | 怎么记 |
-|---|---|
-| 本机 `cmake --build`（含增量、什么都没变也算） | CMake 的 `build_count` 目标自动追加一行 `local` |
-| 本机 `ctest` | `build-local.sh` 追加一行 `test` |
-| 云编译（Actions 每次 run） | workflow 追加一行 `ci`；分支构建号 = 追加后那行的号 |
-| tag 构建 | 号直接取 tag 名里的 `.buildN`，只编译不回写（tag 是快照） |
-
-### 为什么是「流水账」而不是一个数字
-
-早先是 `build-count.json` 里一个 `build`，本机和 CI 各自读出来 +1 再写回。
-两边同时推进时 git 合并只能二选一，**两次编译只剩一次，号被吃掉**，还每次 push 都冲突。
-
-现在拆成两个文件：
-
-| 文件 | 作用 | 合并行为 |
-|---|---|---|
-| `build-count.json` | `base`（1~110 的汇总数，之后不再变）+ 口径说明 + 冻结的旧明细 | 不再被写，所以不冲突 |
-| `build-events.jsonl` | 一次编译一行，只追加、不改写 | `.gitattributes` 里 `merge=union`，两边的行都保留 |
-
-`build = base + build-events.jsonl 的行数`。所以本机 1 行 + 云端 1 行 = 号 +2，
-既不会互相覆盖，也不会再产生冲突块。
-
-| 字段 | 含义 |
-|---|---|
-| `base` | 开始按事件留档之前的次数汇总（1~110 那段只有汇总，没有逐条明细），冻结不再变 |
-| `since` | 开始按事件逐条留档的时间点 |
-| `legacy_history` | 旧格式的明细，冻结保留，不再追加 |
-
-```bash
-python scripts/bump-build.py --show          # 看当前号 + 最近几条
-python scripts/bump-build.py --next          # 只算下一次的号（CI 取号用）
-python scripts/bump-build.py --source local --note "..."   # 一般用不到，CMake 已自动记
-```
-
-云编译由 workflow 的 `Record build count` 步骤自动追加并回写 master；tag 构建是 detached HEAD，
-只写进 run summary 不回写。
-
-> **坑**：GitHub 对 `[skip ci]` 是**全文匹配**，不只看标题行。提交正文里只要出现这个字样
-> （哪怕是在解释它），整次 push 的 workflow 都会被跳过。写提交信息时别在正文里提这个词。
-
+**完整说明见 [`docs/版本号与构建计数.md`](docs/版本号与构建计数.md)**：两个字段的分工、
+tag 命名（`v<营销版本>.build<构建号>`）、两个仓库共用一套计数、三者一致的校验方法、
+流水账的由来，以及四个踩过的坑（plist 写死字面量 / Release 403 / 提交信息触发跳过 /
+`$VAR` 后跟中文标点）。
 ## 目录
 
 - `core/include` / `core/src` — 跨平台核心库

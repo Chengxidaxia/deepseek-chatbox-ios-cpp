@@ -27,6 +27,10 @@
 		B2C3D4E5F60718293A4B4C02 /* DSRootViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F60718293A4B4C01 /* DSRootViewController.m */; };
 		B2C3D4E5F60718293A4B4C05 /* DSTopBarView.m in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F60718293A4B4C04 /* DSTopBarView.m */; };
 		B2C3D4E5F60718293A4B5D02 /* DSButton.m in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F60718293A4B5D01 /* DSButton.m */; };
+		B2C3D4E5F60718293A4B5E02 /* DSVariableBlurView.m in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F60718293A4B5E01 /* DSVariableBlurView.m */; };
+		B2C3D4E5F60718293A4B6102 /* DSToggleButtonGroup.m in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F60718293A4B6101 /* DSToggleButtonGroup.m */; };
+		B2C3D4E5F60718293A4B5F02 /* DSBackToBottomButton.m in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F60718293A4B5F01 /* DSBackToBottomButton.m */; };
+		B2C3D4E5F60718293A4B6002 /* DSOperationView.m in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F60718293A4B6001 /* DSOperationView.m */; };
 		01254C7FCCDF46E8356C958C /* store.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 94547846DA3EF6DC5D13E641 /* store.cpp */; };
 		30B6AF5094CD7D0C3386FE1B /* api.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE40ECFBB45B50CBB7FB3889 /* api.cpp */; };
 		EED3B72F2AC8DD8EBC0AC925 /* tools.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E96DC8B3664B9C9BCF2671FC /* tools.cpp */; };
@@ -66,6 +70,14 @@
 		B2C3D4E5F60718293A4B4C06 /* DSTopBarView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Views/DSTopBarView.h; sourceTree = SOURCE_ROOT; };
 		B2C3D4E5F60718293A4B5D01 /* DSButton.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Views/DSButton.m; sourceTree = SOURCE_ROOT; };
 		B2C3D4E5F60718293A4B5D03 /* DSButton.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Views/DSButton.h; sourceTree = SOURCE_ROOT; };
+		B2C3D4E5F60718293A4B5E01 /* DSVariableBlurView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Views/DSVariableBlurView.m; sourceTree = SOURCE_ROOT; };
+		B2C3D4E5F60718293A4B5E03 /* DSVariableBlurView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Views/DSVariableBlurView.h; sourceTree = SOURCE_ROOT; };
+		B2C3D4E5F60718293A4B6101 /* DSToggleButtonGroup.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Views/DSToggleButtonGroup.m; sourceTree = SOURCE_ROOT; };
+		B2C3D4E5F60718293A4B6103 /* DSToggleButtonGroup.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Views/DSToggleButtonGroup.h; sourceTree = SOURCE_ROOT; };
+		B2C3D4E5F60718293A4B5F01 /* DSBackToBottomButton.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Views/DSBackToBottomButton.m; sourceTree = SOURCE_ROOT; };
+		B2C3D4E5F60718293A4B5F03 /* DSBackToBottomButton.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Views/DSBackToBottomButton.h; sourceTree = SOURCE_ROOT; };
+		B2C3D4E5F60718293A4B6001 /* DSOperationView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Views/DSOperationView.m; sourceTree = SOURCE_ROOT; };
+		B2C3D4E5F60718293A4B6003 /* DSOperationView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Views/DSOperationView.h; sourceTree = SOURCE_ROOT; };
 		94547846DA3EF6DC5D13E641 /* store.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ../core/src/store.cpp; sourceTree = SOURCE_ROOT; };
 		BE40ECFBB45B50CBB7FB3889 /* api.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ../core/src/api.cpp; sourceTree = SOURCE_ROOT; };
 		E96DC8B3664B9C9BCF2671FC /* tools.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ../tools/src/tools.cpp; sourceTree = SOURCE_ROOT; };
@@ -214,6 +226,14 @@
 				B2C3D4E5F60718293A4B4C06 /* DSTopBarView.h */,
 				B2C3D4E5F60718293A4B5D01 /* DSButton.m */,
 				B2C3D4E5F60718293A4B5D03 /* DSButton.h */,
+				B2C3D4E5F60718293A4B5E01 /* DSVariableBlurView.m */,
+				B2C3D4E5F60718293A4B5E03 /* DSVariableBlurView.h */,
+				B2C3D4E5F60718293A4B6101 /* DSToggleButtonGroup.m */,
+				B2C3D4E5F60718293A4B6103 /* DSToggleButtonGroup.h */,
+				B2C3D4E5F60718293A4B5F01 /* DSBackToBottomButton.m */,
+				B2C3D4E5F60718293A4B5F03 /* DSBackToBottomButton.h */,
+				B2C3D4E5F60718293A4B6001 /* DSOperationView.m */,
+				B2C3D4E5F60718293A4B6003 /* DSOperationView.h */,
 			);
 			name = Views;
 			sourceTree = "<group>";
@@ -365,6 +385,10 @@
 				B2C3D4E5F60718293A4B4C02 /* DSRootViewController.m in Sources */,
 				B2C3D4E5F60718293A4B4C05 /* DSTopBarView.m in Sources */,
 				B2C3D4E5F60718293A4B5D02 /* DSButton.m in Sources */,
+				B2C3D4E5F60718293A4B5E02 /* DSVariableBlurView.m in Sources */,
+				B2C3D4E5F60718293A4B6102 /* DSToggleButtonGroup.m in Sources */,
+				B2C3D4E5F60718293A4B5F02 /* DSBackToBottomButton.m in Sources */,
+				B2C3D4E5F60718293A4B6002 /* DSOperationView.m in Sources */,
 				01254C7FCCDF46E8356C958C /* store.cpp in Sources */,
 				30B6AF5094CD7D0C3386FE1B /* api.cpp in Sources */,
 				EED3B72F2AC8DD8EBC0AC925 /* tools.cpp in Sources */,
