@@ -179,3 +179,15 @@
 | 按住说话直接转文字、不边录边识别 | 官方为流式 ASR；这里用 `/v1/tools/asr` 一次性上传，松手后才出文字 |
 | 图片不落盘为独立文件 | 存 SQLite blob，随会话导出；官方存沙盒文件目录 |
 | 无侧边栏抽屉 | 会话列表用导航栈 push，官方是 Sidebar 抽屉 |
+
+## 7. 构建状态
+
+| 项 | 值 |
+|---|---|
+| 版本 | `1.12.4.build87`（`CFBundleShortVersionString` 1.12.4 / `CFBundleVersion` 87） |
+| Bundle ID | `com.dsbox.chatbox` |
+| 架构 / 最低系统 | arm64 / iOS 16.0 |
+| 云编译 | GitHub Actions `iOS Build`（macos-latest），最近一次 run `45335475373` **success** |
+| 编译警告 | 本工程代码 0 条（仅剩 runner 侧 actions Node20 提示） |
+| 产物 | `ChatboxIOS-adhoc.ipa`，2.94 MB，`codesign -s -` ad-hoc 签名 |
+| 装真机 | 需 Sideloadly / AltStore / TrollStore 重签（无开发者证书） |
