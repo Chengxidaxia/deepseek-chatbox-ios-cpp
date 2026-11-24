@@ -16,9 +16,22 @@ jobs:
 
       # vcpkg：用官方仓库的 arm64-ios triplet 编 curl/openssl 静态库。
       # 不用 manifest baseline，classic 模式避免伪造 baseline 哈希。
+      # 用 codeload 的 tar 包而不是 git clone：runner 上匿名 git clone 偶发
+      # "could not read Username for 'https://github.com'"，tar 下载更稳。
       - name: Bootstrap vcpkg
         run: |
-          git clone --depth 1 https://github.com/microsoft/vcpkg.git "$RUNNER_TEMP/vcpkg"
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/vcpkg"
+          for i in 1 2 3 4 5; do
+            if curl -fsSL --retry 3 --retry-delay 5 \
+                -o "$RUNNER_TEMP/vcpkg.tar.gz" \
+                https://codeload.github.com/microsoft/vcpkg/tar.gz/refs/heads/master; then
+              break
+            fi
+            echo "vcpkg 下载失败，第 $i 次重试..."
+            sleep 10
+          done
+          tar xzf "$RUNNER_TEMP/vcpkg.tar.gz" -C "$RUNNER_TEMP/vcpkg" --strip-components=1
           "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
           echo "VCPKG_ROOT=$RUNNER_TEMP/vcpkg" >> "$GITHUB_ENV"
 
