@@ -94,6 +94,12 @@ python scripts/bump-build.py --source local --note "..."  # 手动补记（一�
 - `cmake/` — iOS toolchain / 签名配置
 - `scripts/` — 打包 / 发布脚本
 
+## 安装（iOS）
+
+产物是 **Ad-Hoc 签名**的 ipa，不能直接装，要用 Sideloadly / AltStore 这类工具重签后安装
+（免费证书 7 天过期）。版本信息、安装步骤、逐项真机验证清单见
+[`docs/安装与真机验证.md`](docs/安装与真机验证.md)。
+
 ## 进度
 
 - [x] C++ 核心骨架 + CMake + 依赖
