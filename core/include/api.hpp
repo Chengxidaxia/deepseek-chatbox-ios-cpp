@@ -46,6 +46,9 @@ struct StreamOptions {
   std::function<bool()> shouldStop;  // 返回 true 则中止
   std::string apiKey;
   std::string baseUrl;
+  // 续写（对话前缀续写 Beta）必须走 beta 端点：
+  // https://api-docs.deepseek.com/guides/chat_prefix_completion
+  bool beta = false;
 };
 
 // 余额

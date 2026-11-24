@@ -583,8 +583,6 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
     json payload = ApiClient::buildPayload(history, st,
         lastRound ? std::vector<json>{} : toolDefs, false,
         round == 0 ? continuePrefix : std::string());
-    // 续写只有第一轮带前缀；__beta 与 Web 版一致，告知上游走续写模式
-    if (round == 0 && !continuePrefix.empty()) payload["__beta"] = true;
     if (lastRound && payload.contains("messages") && payload["messages"].is_array()) {
       const std::string note =
           "【系统提示】本次提问中，「请求工具 → 看结果 → 再请求」的往返轮次已经用满（上限 10 轮），"
@@ -604,6 +602,8 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
     StreamOptions opts;
     opts.apiKey = apiKey;
     opts.baseUrl = st.baseUrl;
+    // 续写只有第一轮带前缀，且必须走 beta 端点（官方文档要求）
+    opts.beta = (round == 0 && !continuePrefix.empty());
     opts.shouldStop = [self]() { return self->stop_.load(); };
     opts.onEvent = [&](const StreamEvent &e) {
       switch (e.type) {

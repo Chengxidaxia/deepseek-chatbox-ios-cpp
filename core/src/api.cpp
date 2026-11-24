@@ -359,7 +359,8 @@ json ApiClient::buildPayload(const std::vector<Message>& history, const Settings
 bool ApiClient::streamChat(const json& payload, const StreamOptions& opts, std::string* err) {
   CURL* curl = curl_easy_init();
   if (!curl) { if (err) *err="curl 初始化失败"; return false; }
-  std::string url = baseUrl_ + "/chat/completions";
+  // 续写走 beta 端点（官方要求），其余走常规端点
+  std::string url = baseUrl_ + (opts.beta ? "/beta/chat/completions" : "/chat/completions");
   std::string bodyStr = payload.dump();
   curl_slist* headers = nullptr;
   headers = curl_slist_append(headers, ("Authorization: Bearer "+opts.apiKey).c_str());

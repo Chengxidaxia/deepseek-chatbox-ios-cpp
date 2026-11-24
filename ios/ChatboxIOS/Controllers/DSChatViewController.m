@@ -735,6 +735,19 @@
         DSVoiceRecorder *rec = ws.recorder;
         if (!rec || !rec.isRecording) return;
         [ws.voiceOverlay updateLevel:rec.level duration:rec.duration canceling:ws.voiceCanceling];
+        // 官方 ASR 单次上限 120 秒，到点自动收尾并开始识别（否则接口直接 400）
+        if (rec.duration >= 120.0) {
+          [t invalidate];
+          ws.voiceTimer = nil;
+          NSString *path = [rec finish];
+          ws.recorder = nil;
+          if (path.length) {
+            [ws.voiceOverlay showRecognizing];
+            [ws transcribeVoiceAtPath:path];
+          } else {
+            [ws.voiceOverlay dismiss];
+          }
+        }
       }];
       break;
     }
@@ -749,6 +762,7 @@
     case UIGestureRecognizerStateFailed: {
       [self.voiceTimer invalidate];
       self.voiceTimer = nil;
+      if (!self.recorder) break;  // 已在 120 秒上限处自动收尾，避免把「识别中」浮层关掉
       BOOL cancel = self.voiceCanceling || g.state != UIGestureRecognizerStateEnded;
       NSString *path = cancel ? nil : [self.recorder finish];
       if (cancel) [self.recorder cancel];
@@ -993,6 +1007,13 @@
 - (void)messageCellDidTapContinue:(DSMessageCell *)cell {
   DSTurn *turn = cell.turn;
   if (!turn || turn.role != DSTurnRoleAssistant || self.streaming) return;
+
+  // 官方限制：用过 deepseek_web_search / deepseek_read_url 的回复不能续写（会返回 400）
+  NSDictionary *st = [[DSBoxService shared] settings];
+  if ([st[@"search"] boolValue] || [st[@"readUrl"] boolValue]) {
+    [self toast:@"联网工具开启时无法续写，请先关闭「智能搜索」"];
+    return;
+  }
 
   NSDictionary *tail = turn.tailRound;
   if (!tail) return;
