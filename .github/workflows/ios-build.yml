@@ -56,26 +56,22 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             archive 2>&1 | tee "$OUT/archive.log"
 
-      - name: Export .ipa
+      # archive 是未签名的（CODE_SIGNING_ALLOWED=NO）。
+      # -exportArchive 需要开发者 Team，这里改为手动组 ipa + ad-hoc 签名（codesign -s -）。
+      - name: Package .ipa (ad-hoc)
         run: |
           set -euo pipefail
           OUT="$GITHUB_WORKSPACE/.build/ios"
-          cat > "$OUT/ExportOptions.plist" <<'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key><string>ad-hoc</string>
-            <key>signingStyle</key><string>automatic</string>
-            <key>stripSwiftSymbols</key><true/>
-            <key>uploadSymbols</key><false/>
-          </dict>
-          </plist>
-          EOF
-          xcodebuild -exportArchive \
-            -archivePath "$OUT/ChatboxIOS.xcarchive" \
-            -exportOptionsPlist "$OUT/ExportOptions.plist" \
-            -exportPath "$OUT/ipa" 2>&1 | tee "$OUT/export.log"
+          APP="$OUT/ChatboxIOS.xcarchive/Products/Applications/ChatboxIOS.app"
+          test -d "$APP" || { echo "::error::找不到 ChatboxIOS.app"; exit 1; }
+
+          # ad-hoc 签名：无需证书 / Team，装上需 sideload 工具重签
+          codesign --force --deep --sign - --timestamp=none "$APP" || \
+            echo "::warning::ad-hoc 签名失败，产物为未签名 ipa"
+
+          rm -rf "$OUT/ipa" && mkdir -p "$OUT/ipa/Payload"
+          cp -R "$APP" "$OUT/ipa/Payload/"
+          ( cd "$OUT/ipa" && zip -qry "ChatboxIOS-adhoc.ipa" Payload )
           ls -la "$OUT/ipa"
 
       - name: Upload artifact

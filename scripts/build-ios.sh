@@ -27,23 +27,14 @@ xcodebuild -project "$ROOT/ios/ChatboxIOS.xcodeproj" \
   CODE_SIGNING_ALLOWED=NO \
   archive 2>&1 | tee "$OUT/archive.log"
 
-cat > "$OUT/ExportOptions.plist" <<'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>method</key><string>ad-hoc</string>
-  <key>signingStyle</key><string>automatic</string>
-  <key>stripSwiftSymbols</key><true/>
-  <key>uploadSymbols</key><false/>
-</dict>
-</plist>
-EOF
-
-xcodebuild -exportArchive \
-  -archivePath "$OUT/ChatboxIOS.xcarchive" \
-  -exportOptionsPlist "$OUT/ExportOptions.plist" \
-  -exportPath "$OUT/ipa" 2>&1 | tee "$OUT/export.log"
+# archive 未签名（CODE_SIGNING_ALLOWED=NO），-exportArchive 需开发者 Team，
+# 因此手动组 ipa + ad-hoc 签名（装上需 sideload 工具重签）。
+APP="$OUT/ChatboxIOS.xcarchive/Products/Applications/ChatboxIOS.app"
+test -d "$APP" || { echo "找不到 ChatboxIOS.app"; exit 1; }
+codesign --force --deep --sign - --timestamp=none "$APP" || echo "警告：ad-hoc 签名失败，产物为未签名 ipa"
+rm -rf "$OUT/ipa" && mkdir -p "$OUT/ipa/Payload"
+cp -R "$APP" "$OUT/ipa/Payload/"
+( cd "$OUT/ipa" && zip -qry "ChatboxIOS-adhoc.ipa" Payload )
 
 echo "=== 完成：$OUT/ipa ==="
 ls -la "$OUT/ipa"
