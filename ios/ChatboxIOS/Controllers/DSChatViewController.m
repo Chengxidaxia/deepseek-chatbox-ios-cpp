@@ -20,6 +20,7 @@
 #import "DSStrings.h"
 #import "DSIcon.h"
 #import "DSTopBarView.h"
+#import "DSButton.h"
 
 #import <PhotosUI/PhotosUI.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
@@ -49,8 +50,8 @@
 // 视图
 @property (nonatomic, strong) UITableView *tableView;
 @property (nonatomic, strong) UIVisualEffectView *composer;
-@property (nonatomic, strong) UIButton *thinkChip;
-@property (nonatomic, strong) UIButton *searchChip;
+@property (nonatomic, strong) DSButton *thinkChip;
+@property (nonatomic, strong) DSButton *searchChip;
 /// 官方顶栏（自绘，不是 UINavigationBar）：☰ / 模型名⌄ / ＋
 @property (nonatomic, strong) DSTopBarView *topBar;
 // 模型 id → 展示名（来自 /models，取不到就用 id 本身）
@@ -294,39 +295,47 @@
   [box addSubview:_placeholder];
 
   // ---- 工具行右侧：附件 / 语音 / 发送 ----
-  _attachButton = [UIButton buttonWithType:UIButtonTypeSystem];
-  _attachButton.translatesAutoresizingMaskIntoConstraints = NO;
-  [_attachButton setImage:[DSIcon image:DSIconPlus size:DSIconPointSizeAction] forState:UIControlStateNormal];
-  _attachButton.tintColor = [DSTheme labelSecondary];
+  // 官方 ActionAreaView 里是 UploadButton / VoiceInputButton / SendButton 三个独立类，
+  // 但样式全来自 DSButton。这里同样走 DSButton，尺寸 30（官方输入条按钮实测约 30）。
+  DSButtonConfig *attachCfg = [DSButtonConfig style:DSButtonStylePlain icon:DSIconPlus title:nil];
+  attachCfg.iconSize = DSIconPointSizeAction;          // 20
+  attachCfg.minSize = CGSizeMake(30, 30);
+  attachCfg.hPadding = 0;
+  attachCfg.vPadding = 0;
+  attachCfg.cornerRadius = 0;
+  _attachButton = [DSButton buttonWithConfig:attachCfg];
   [_attachButton addTarget:self action:@selector(attachTapped) forControlEvents:UIControlEventTouchUpInside];
 
-  _micButton = [UIButton buttonWithType:UIButtonTypeSystem];
-  _micButton.translatesAutoresizingMaskIntoConstraints = NO;
-  [_micButton setImage:[DSIcon image:DSIconMic size:DSIconPointSizeAction] forState:UIControlStateNormal];
-  _micButton.tintColor = [DSTheme labelSecondary];
+  DSButtonConfig *micCfg = [DSButtonConfig style:DSButtonStylePlain icon:DSIconMic title:nil];
+  micCfg.iconSize = DSIconPointSizeAction;
+  micCfg.minSize = CGSizeMake(30, 30);
+  micCfg.hPadding = 0;
+  micCfg.vPadding = 0;
+  micCfg.cornerRadius = 0;
+  _micButton = [DSButton buttonWithConfig:micCfg];
   UILongPressGestureRecognizer *press =
       [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(micPressed:)];
   press.minimumPressDuration = 0.12;
   [_micButton addGestureRecognizer:press];
 
-  _sendButton = [UIButton buttonWithType:UIButtonTypeSystem];
-  _sendButton.translatesAutoresizingMaskIntoConstraints = NO;
-  [_sendButton setImage:[DSIcon image:DSIconSend size:DSIconPointSizeInline] forState:UIControlStateNormal];
-  _sendButton.tintColor = UIColor.whiteColor;
-  _sendButton.backgroundColor = [DSTheme brand];
-  _sendButton.layer.cornerRadius = 15;
-  _sendButton.layer.cornerCurve = kCACornerCurveContinuous;
-  _sendButton.enabled = NO;
-  _sendButton.alpha = 0.4;
+  DSButtonConfig *sendCfg = [DSButtonConfig style:DSButtonStyleFilled icon:DSIconSend title:nil];
+  sendCfg.iconSize = DSIconPointSizeInline;
+  sendCfg.minSize = CGSizeMake(30, 30);
+  sendCfg.hPadding = 0;
+  sendCfg.vPadding = 0;
+  sendCfg.cornerRadius = 15;
+  _sendButton = [DSButton buttonWithConfig:sendCfg];
+  _sendButton.enabled = NO;      // applyConfig 会把 alpha 压到 0.4
   [_sendButton addTarget:self action:@selector(send) forControlEvents:UIControlEventTouchUpInside];
 
-  _stopButton = [UIButton buttonWithType:UIButtonTypeSystem];
-  _stopButton.translatesAutoresizingMaskIntoConstraints = NO;
-  [_stopButton setImage:[DSIcon image:DSIconStop size:DSIconPointSizeInline] forState:UIControlStateNormal];
-  _stopButton.tintColor = UIColor.whiteColor;
-  _stopButton.backgroundColor = [DSTheme labelPrimary];
-  _stopButton.layer.cornerRadius = 15;
-  _stopButton.layer.cornerCurve = kCACornerCurveContinuous;
+  DSButtonConfig *stopCfg = [DSButtonConfig style:DSButtonStyleFilled icon:DSIconStop title:nil];
+  stopCfg.iconSize = DSIconPointSizeInline;
+  stopCfg.minSize = CGSizeMake(30, 30);
+  stopCfg.hPadding = 0;
+  stopCfg.vPadding = 0;
+  stopCfg.cornerRadius = 15;
+  stopCfg.background = [DSTheme labelPrimary];   // 停止是深色实心，和发送的蓝色区分开
+  _stopButton = [DSButton buttonWithConfig:stopCfg];
   _stopButton.hidden = YES;
   [_stopButton addTarget:self action:@selector(stop) forControlEvents:UIControlEventTouchUpInside];
 
@@ -405,25 +414,21 @@
 }
 
 /// chips 是「输入框内的小胶囊」：未选中浅灰填充，选中品牌色淡底 + 品牌色字（官方同款）
-/// 尺寸按官方量：图标 16×16（官方 Lottie 的画布就是 16）、胶囊高 30、圆角 15
-- (UIButton *)chipButtonWithTitle:(NSString *)title icon:(DSIconName)icon action:(SEL)action {
-  UIButton *b = [UIButton buttonWithType:UIButtonTypeSystem];
-  b.translatesAutoresizingMaskIntoConstraints = NO;
-  b.titleLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
-  b.titleLabel.lineBreakMode = NSLineBreakByTruncatingTail;
-  [b setTitle:title forState:UIControlStateNormal];
-  [b setImage:[DSIcon image:icon size:DSIconPointSizeInline] forState:UIControlStateNormal];
-  // 这三个 inset 在 iOS 15+ 被标了 deprecated，但只在使用 UIButtonConfiguration 时才被忽略；
-  // 这里用的是 buttonWithType: 的旧式按钮（configuration 为 nil），inset 仍然生效，
-  // 换成 configuration 反而要自己维护 attributedTitle 的字体/配色，不划算。
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-  b.imageEdgeInsets = UIEdgeInsetsMake(0, -4, 0, 4);
-  b.titleEdgeInsets = UIEdgeInsetsMake(0, 4, 0, -4);
-  b.contentEdgeInsets = UIEdgeInsetsMake(0, 10, 0, 10);
-#pragma clang diagnostic pop
-  b.layer.cornerRadius = 15;
-  b.layer.cornerCurve = kCACornerCurveContinuous;
+/// 尺寸按官方量：图标 16×16（官方 Assets 里 toggle 系列就是 16 画布）、胶囊高 30
+///
+/// 走 DSButton 而不是手写 UIButton：官方全站按钮同源（`DSButton` + 五个 Config），
+/// 选中/禁用/深浅色切换都由配置统一驱动。手写的话每加一处按钮就要重抄一遍配色，
+/// 迟早不一致 —— 这正是之前「看着不像官方」的根因。
+- (DSButton *)chipButtonWithTitle:(NSString *)title icon:(DSIconName)icon action:(SEL)action {
+  DSButtonConfig *c = [DSButtonConfig style:DSButtonStyleTinted icon:icon title:title];
+  c.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
+  c.iconSize = DSIconPointSizeInline;   // 16
+  c.cornerRadius = 15;
+  c.hPadding = 10;
+  c.vPadding = 0;
+  c.iconTitleGap = 4;
+  c.minSize = CGSizeMake(0, 30);       // 高度锁 30，宽度由内容撑
+  DSButton *b = [DSButton buttonWithConfig:c];
   [b addTarget:self action:action forControlEvents:UIControlEventTouchUpInside];
   [b.heightAnchor constraintEqualToConstant:30].active = YES;
   return b;
@@ -438,19 +443,11 @@
   [self styleChip:_searchChip on:search];
 }
 
-- (void)styleChip:(UIButton *)chip on:(BOOL)on {
+/// 选中态交给 DSButton 的 config（selectedTint / selectedBackground），
+/// 这里只负责把状态传下去 —— 配色不要再在这儿写第二遍。
+- (void)styleChip:(DSButton *)chip on:(BOOL)on {
   if (!chip) return;
-  chip.selected = on;   // 本地状态也记一份，回读校验和点击反馈都用它
-  if (on) {
-    chip.backgroundColor = [[DSTheme brand] colorWithAlphaComponent:0.12];
-    [chip setTitleColor:[DSTheme brand] forState:UIControlStateNormal];
-    chip.tintColor = [DSTheme brand];
-  } else {
-    chip.backgroundColor = [DSTheme bgActive];
-    [chip setTitleColor:[DSTheme labelSecondary] forState:UIControlStateNormal];
-    chip.tintColor = [DSTheme labelSecondary];
-  }
-  [chip setNeedsDisplay];
+  chip.selected = on;   // setSelected 里会自动 applyConfig
 }
 
 - (void)refreshChips {
