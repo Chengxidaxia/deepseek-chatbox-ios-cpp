@@ -428,6 +428,11 @@
     moreCfg.cornerRadius = 0;
     moreCfg.tint = [DSTheme labelTertiary];
     DSButton *more = [DSButton buttonWithConfig:moreCfg];
+    // accessoryView 不吃 Auto Layout：UITableView 只读它的 frame，不会替它解约束。
+    // 而 buttonWithConfig: 里为了普通场景把 TAMIC 关掉了 —— 这里必须打开并给死尺寸，
+    // 否则没有约束可解，最终 frame 是零：按钮建出来了，但看不见、也点不到。
+    more.translatesAutoresizingMaskIntoConstraints = YES;
+    more.frame = CGRectMake(0, 0, moreCfg.minSize.width, moreCfg.minSize.height);
     more.accessibilityLabel = @"更多操作";
     [more addTarget:self action:@selector(sessionMoreTapped:)
    forControlEvents:UIControlEventTouchUpInside];

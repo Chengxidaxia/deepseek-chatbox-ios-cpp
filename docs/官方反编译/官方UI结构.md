@@ -193,7 +193,7 @@ demangle），把每个函数和类对上。这是一项独立的、更大的工
 
 ## 3. 我们 vs 官方：差异表
 
-状态截至 **build 123**。
+状态截至 **build 125**。
 
 | 项 | 官方 | 我们 | 状态 |
 |---|---|---|---|
@@ -207,6 +207,8 @@ demangle），把每个函数和类对上。这是一项独立的、更大的工
 | chips 容器 | `ToggleButtonGroup` / `ToggleButtonContainer` | `DSToggleButtonGroup` | ✅ build 123 |
 | 空态 | `MessageViewController.EmptyView` + `PromptSuggestionView.TemplateButton` | 独立 welcomeView + 建议问题胶囊 | ✅ build 123 |
 | 会话列表 | **UICollectionView** + 骨架屏 + 加载更多 + 虚拟根 cell | UITableView | ❌ 未做 |
+| 会话行「…」菜单 | `SessionListCollectionView.Cell` 右侧常驻 `ic_ellipsis_outline_20` | `cell.accessoryView` 常驻 `…` + 四项菜单 | ✅ build 125 |
+| 抽屉点空白关闭 | `MainDecorationView` 承接关闭手势 | `contentTap`，仅在抽屉打开期间启用 | ✅ build 125 |
 | 会话搜索 | `SessionListSearchBarView.SearchFieldView` | 自绘 UITextField | 部分 |
 | 输入区三层 | `TextInputView`(自带 Layout) → `ActionAreaView` → `ToggleButtonGroup` | 两层：输入框 + 工具条（含 group） | 部分 |
 | 设置页 | `ProfileViewController` + `InsetsGroupedCell` / `SectionHeader` | 手写 tableView | ❌ 未做 |
