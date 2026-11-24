@@ -7,3 +7,4 @@
 {"n":117,"at":"2026-11-24 20:11 +0800","source":"ci","result":"success","ref":"45390238255","note":"云编译 master"}
 {"n":118,"at":"2026-11-24 20:23 +0800","source":"local","result":"success","ref":"","note":"cmake --build"}
 {"n":119,"at":"2026-11-24 20:23 +0800","source":"test","result":"success","ref":"","note":"ctest 三套件"}
+{"n":120,"at":"2026-11-24 20:33 +0800","source":"ci","result":"failed","ref":"45393858885","note":"云编译 master"}
