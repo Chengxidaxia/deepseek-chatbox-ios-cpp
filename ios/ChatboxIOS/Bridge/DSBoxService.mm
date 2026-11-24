@@ -275,7 +275,7 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
   std::string err;
   std::string key = store_->unlockKey(StdStr(pin), &err);
   if (key.empty()) {
-    if (error) *error = MakeErr(NSStr(err.empty() ? @"PIN 错误" : NSStr(err)));
+    if (error) *error = MakeErr(NSStr(err.empty() ? std::string("PIN 错误") : err));
     return NO;
   }
   unlockedKey_ = key;
@@ -362,7 +362,7 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
   std::vector<unsigned char> wav;
   std::string err;
   if (!api_->synthesize(StdStr(text), StdStr(voice), unlockedKey_, &wav, &err)) {
-    if (error) *error = MakeErr(NSStr(err.empty() ? @"语音合成失败" : err));
+    if (error) *error = MakeErr(NSStr(err.empty() ? std::string("语音合成失败") : err));
     return nil;
   }
   NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:
@@ -381,7 +381,7 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
   std::vector<unsigned char> audio((const unsigned char *)data.bytes, (const unsigned char *)data.bytes + data.length);
   json out; std::string err;
   if (!api_->transcribe(audio, StdStr(filename), unlockedKey_, &out, &err)) {
-    if (error) *error = MakeErr(NSStr(err.empty() ? @"语音识别失败" : err));
+    if (error) *error = MakeErr(NSStr(err.empty() ? std::string("语音识别失败") : err));
     return nil;
   }
   if (out.contains("text") && out["text"].is_string()) return NSStr(out["text"].get<std::string>());
@@ -475,7 +475,7 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
     if (!ok) {
       dispatch_async(dispatch_get_main_queue(), ^{
         id<DSBoxChatDelegate> d = delegate;
-        NSString *msg = NSStr(err.empty() ? @"请求失败" : err);
+        NSString *msg = NSStr(err.empty() ? std::string("请求失败") : err);
         [d dsboxDidReceiveEvent:DSBoxStreamEventError text:msg data:nil];
         if ([d respondsToSelector:@selector(dsboxDidFinishWithError:)])
           [d dsboxDidFinishWithError:MakeErr(msg)];
