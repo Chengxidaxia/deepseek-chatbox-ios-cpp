@@ -769,7 +769,7 @@
     "type": "function",
     "function": {
       "name": "token_count",
-      "description": "粗估文本的 token 数（iOS 端按「CJK 1 token/字、其余约 3.2 字符/token」的字符规则估算，不是官方 BPE 分词器，结果带 estimated 标记）。注意：实测对中英文散文会偏高约 40%~100%（常用词会被合并成更少的 token），JSON/代码类反而可能偏低，所以只能用来判断量级（几百还是几万），不要拿它精确算钱。需要精确值请让用户看 API 返回的 usage。本地离线计算，不调用 API、不产生费用；不支持返回 token id 与片段。",
+      "description": "精确计算文本的 token 数（DeepSeek V4.1-Flash 官方 byte-level BPE 词表，12.8 万词条，本地离线分词，与 Web 版逐 token 一致）。可用来估算费用、判断是否接近上下文上限。detail=true 时额外返回每个 token 的 id 与片段，便于排查长文本为何被算多（比如一段代码被切成大量碎片）。只算文本本身，不含 system prompt 与消息模板的额外开销，实际计费以 API 返回的 usage 为准。本地计算，不调用 API、不产生费用。",
       "parameters": {
         "type": "object",
         "properties": {

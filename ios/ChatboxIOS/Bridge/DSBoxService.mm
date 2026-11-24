@@ -6,6 +6,7 @@
 #include "api.hpp"
 #include "crypto.hpp"
 #include "tools.hpp"
+#include "tokenizer.hpp"
 #include "util.hpp"
 
 #include <atomic>
@@ -110,6 +111,10 @@ static NSError *MakeErr(NSString *msg, NSInteger code = -1) {
   if (self = [super init]) {
     stop_.store(false);
     api_ = std::make_unique<ApiClient>();
+    // 真分词器的词表在 bundle 里（tokenizer.bin，3.9 MB）。这里只登记路径，
+    // 真正的解析推迟到第一次 token_count，避免拖慢冷启动。
+    NSString *tokPath = [[NSBundle mainBundle] pathForResource:@"tokenizer" ofType:@"bin"];
+    if (tokPath) ds::tok::setDataFile(StdStr(tokPath));
   }
   return self;
 }

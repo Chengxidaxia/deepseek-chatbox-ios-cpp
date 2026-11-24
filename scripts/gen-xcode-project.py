@@ -41,10 +41,12 @@ CPP_SOURCES = [
     'tools/src/crypto-tools.cpp',
     'tools/src/net-tools.cpp',
     'tools/src/web-tools.cpp',
+    'tools/src/tokenizer.cpp',
     'tools/src/qr-core.cpp',
 ]
 RESOURCES = [
     'tools/tool_defs.json',
+    'tools/tokenizer.bin',
 ]
 HEADERS = [
     'ios/ChatboxIOS/Bridge/DSBoxService.h',
@@ -103,12 +105,13 @@ def group_entries(paths, indent='\t\t\t\t'):
     return '\n'.join(lines)
 
 
-def pb_build_files(paths, phase_id):
+def pb_build_files(paths, phase_id, phase_name='Sources'):
     lines = []
     for p in paths:
         fid = file_ref(p)
         bid = build_file(p, phase_id)
-        lines.append(f'\t\t{bid} /* {pathlib.Path(p).name} in Sources */ = {{isa = PBXBuildFile; fileRef = {fid} /* {pathlib.Path(p).name} */; }};')
+        name = pathlib.Path(p).name
+        lines.append(f'\t\t{bid} /* {name} in {phase_name} */ = {{isa = PBXBuildFile; fileRef = {fid} /* {name} */; }};')
     return '\n'.join(lines)
 
 
@@ -120,7 +123,7 @@ def rel_to_srcroot(p: str) -> str:
 def generate():
     all_sources = OBJC_SOURCES + CPP_SOURCES
     src_build = pb_build_files(all_sources, MAIN_PHASE)
-    res_build = pb_build_files(RESOURCES, RESOURCE_PHASE)
+    res_build = pb_build_files(RESOURCES, RESOURCE_PHASE, 'Resources')
 
     # 文件引用：必须覆盖所有在 PBXGroup 中出现的路径，否则 Xcode 报 fileRef 缺失
     cpp_headers = [
@@ -130,6 +133,7 @@ def generate():
         'tools/include/text-tools.hpp', 'tools/include/crypto-tools.hpp',
         'tools/include/net-tools.hpp',
         'tools/include/web-tools.hpp',
+        'tools/include/tokenizer.hpp',
         'vendor/json.hpp',
     ]
     all_refs = all_sources + RESOURCES + HEADERS + cpp_headers + ['ios/ChatboxIOS/Supporting/Info.plist']
@@ -542,6 +546,7 @@ def file_type(path):
         '.hpp': 'sourcecode.cpp.h',
         '.json': 'text.json',
         '.plist': 'text.plist.xml',
+        '.bin': 'file',
     }.get(ext, 'text')
 
 

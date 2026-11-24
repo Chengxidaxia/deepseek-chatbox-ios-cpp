@@ -5,6 +5,7 @@
 #include "web-tools.hpp"
 #include "qr-core.hpp"
 #include "text-tools.hpp"
+#include "tokenizer.hpp"
 #include "util.hpp"
 #include "crypto.hpp"   // sha256hex
 #include <cmath>
@@ -507,8 +508,28 @@ static ToolResult callImpl(const std::string& name, const json& a, const ToolCon
   if (name == "token_count") {
     std::string text=sarg(a,"text");
     if (text.empty()) return fail("缺少 text 参数。");
-    int tokens=util::estimateTokens(text);
-    return ok("字符数："+std::to_string(text.size())+"\n估算 Token 数："+std::to_string(tokens)+"（字符估算，非官方分词器）", {{"tokens",tokens},{"estimated",true}});
+    const bool detail = a.contains("detail") && a["detail"].is_boolean() && a["detail"].get<bool>();
+    tok::Result r; std::string err;
+    if (!tok::tokenize(text, detail, &r, &err)) {
+      // 词表缺失（比如有人只编了 tools 没带 tokenizer.bin）时退回字符估算，别让工具直接挂掉
+      int est=util::estimateTokens(text);
+      return ok("字符数："+std::to_string(text.size())+"\n估算 Token 数："+std::to_string(est)+
+                "（词表不可用："+err+"，退回字符估算）", {{"tokens",est},{"estimated",true}});
+    }
+    int chars=0; for(unsigned char c: text) if((c & 0xC0)!=0x80) chars++;
+    std::string body="分词器：DeepSeek V4.1-Flash（deepseek-flash，词表 "+std::to_string(r.vocabSize)+"）\n";
+    body+="字符数："+std::to_string(chars)+"（UTF-8 "+std::to_string(text.size())+" 字节）\n";
+    body+="Token 数："+std::to_string(r.count);
+    if (detail) {
+      body+="\n\nToken 明细（id : 片段）：\n";
+      for (size_t i=0;i<r.ids.size();i++) {
+        if (i) body+="  ";
+        body+=std::to_string(r.ids[i])+":"+json(r.pieces[i]).dump();
+      }
+    }
+    json data={{"tokens",r.count},{"model","deepseek-v4.1-flash"},{"vocabSize",r.vocabSize}};
+    if (detail) { data["ids"]=r.ids; data["pieces"]=r.pieces; }
+    return ok(body, data);
   }
   if (name == "find_tool") {
     std::string query=sarg(a,"query"), action=sarg(a,"action");

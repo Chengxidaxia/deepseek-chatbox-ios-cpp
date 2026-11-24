@@ -1,5 +1,6 @@
 #include "tools.hpp"
 #include "qr-core.hpp"
+#include "tokenizer.hpp"
 #include "util.hpp"
 #include <iostream>
 #include <fstream>
@@ -671,6 +672,100 @@ int main() {
     // ---- web_search：无网络也能验的失败分支 ----
     auto ws = eng.call("web_search", {{"query",""}});
     CHECK(!ws.ok && ws.text.find("缺少 query")!=std::string::npos, "web_search 缺 query 报错");
+  }
+
+  // ================= 分词器 =================
+  // 期望值全部由 Web 版 server/tokenizer-core.cjs 现算，等于「与 Web 版逐 token 一致」。
+  // tokenizer.bin 由 scripts/gen-tokenizer-bin.py 从 tokenizer.json 生成，缺失时整个工具会退回
+  // 字符估算，所以这里先卡死词表可用性。
+  std::cout << "=== 分词器 ===\n";
+  {
+    std::string terr;
+    CHECK(tok::available(), "tokenizer.bin 可加载: " + (tok::available() ? "" : terr));
+
+    tok::Result r0;
+    CHECK(tok::tokenize("hello", false, &r0, &terr), "分词 hello 不报错: " + terr);
+    CHECK(r0.vocabSize == 128000, "词表大小=128000: " + std::to_string(r0.vocabSize));
+
+    // 逐条对照 Web 版的 count
+    struct TokCase { const char* text; int count; const char* note; };
+    const TokCase cases[] = {
+      {"hello", 1, "英文单词整体 1 token"},
+      {"Hello, world!", 4, "大小写/标点/空格前缀"},
+      {"你好，世界", 3, "中文：你好 / ， / 世界"},
+      {"DeepSeek V4.1-Flash", 9, "英文子词切分 Deep|Se|ek"},
+      {"1+2*3=7", 7, "数字与运算符各自独立"},
+      {"a\nb", 3, "换行单独成 token"},
+      {"{\"name\":\"小明\",\"age\":18}", 9, "JSON 键值"},
+      {"def f(x):\n    return x*2\n", 10, "Python 代码含缩进"},
+      {"  leading and trailing  ", 5, "首尾空白"},
+      {"\xF0\x9F\x98\x80\xF0\x9F\x8E\x89", 4, "emoji 按字节切（每字 2 token）"},
+      {"The quick brown fox jumps over the lazy dog.", 10, "英文长句"},
+    };
+    for (const auto& c : cases) {
+      tok::Result r;
+      std::string e;
+      const bool good = tok::tokenize(c.text, false, &r, &e);
+      CHECK(good && r.count == c.count,
+            std::string(c.note) + " = " + std::to_string(c.count) +
+            "（实得 " + (good ? std::to_string(r.count) : "ERR:" + e) + "）");
+    }
+
+    // 预分词边界回归：\s+(?!\S) 的回溯语义。这组曾经全错（连续空白被整段吃掉）。
+    const TokCase wsCases[] = {
+      {" \t)", 3, "空格+制表符+右括号"},
+      {"  lea", 3, "双空格后接字母"},
+      {"\t\t:", 3, "双制表符+冒号"},
+      {" \t\xE2\x98\x85", 3, "空格+制表符+星号"},
+      {"  ", 1, "纯双空格合并"},
+      {"x  ", 2, "尾随双空格"},
+      {"\xE3\x80\x80\xE3\x80\x80x", 3, "全角空格"},
+    };
+    for (const auto& c : wsCases) {
+      tok::Result r;
+      std::string e;
+      const bool good = tok::tokenize(c.text, false, &r, &e);
+      CHECK(good && r.count == c.count,
+            std::string("空白边界 ") + c.note + " = " + std::to_string(c.count) +
+            "（实得 " + (good ? std::to_string(r.count) : "ERR:" + e) + "）");
+    }
+
+    // added_tokens：特殊符号整块切出，不参与 BPE
+    {
+      tok::Result r;
+      std::string e;
+      const bool good = tok::tokenize("hi<｜begin▁of▁sentence｜>there", true, &r, &e);
+      CHECK(good && r.count == 8, "特殊 token 整块切出 count=8: " + (good ? std::to_string(r.count) : e));
+      CHECK(good && r.ids.size() == 8 && r.ids[2] == 0, "特殊 token id=0 在第三位");
+      CHECK(good && r.pieces.size() == 8 && r.pieces[2] == "<｜begin▁of▁sentence｜>", "特殊 token 片段完整");
+    }
+
+    // detail 开关
+    {
+      tok::Result r;
+      std::string e;
+      tok::tokenize("Hello, world!", true, &r, &e);
+      CHECK(r.ids.size() == 4 && r.pieces.size() == 4, "detail=true 返回 4 组 id/片段");
+      CHECK(r.pieces[2] == "\xC4\xA0world", "空格经 ByteLevel 变成 Ġ（U+0120）");
+      tok::Result r2;
+      tok::tokenize("Hello, world!", false, &r2, &e);
+      CHECK(r2.ids.empty() && r2.pieces.empty(), "detail=false 不返回 id/片段");
+    }
+
+    // 工具层：与直接调用分词器同数，且 JSON 里带 model/vocabSize
+    {
+      auto r = eng.call("token_count", {{"text","The quick brown fox jumps over the lazy dog."}});
+      CHECK(r.ok && r.data["tokens"]==10, "token_count 工具返回 10");
+      CHECK(r.ok && r.data["vocabSize"]==128000, "token_count 工具返回 vocabSize");
+      CHECK(r.ok && r.text.find("Token 数：10")!=std::string::npos, "token_count 文本含「Token 数：10」");
+      CHECK(r.ok && !r.data.contains("estimated"), "走真分词器时不带 estimated 标记");
+
+      auto rd = eng.call("token_count", {{"text","hello"},{"detail",true}});
+      CHECK(rd.ok && rd.data.contains("ids") && rd.data["ids"].size()==1, "token_count detail 返回 ids");
+
+      auto bad = eng.call("token_count", {{"text",""}});
+      CHECK(!bad.ok && bad.text.find("缺少 text")!=std::string::npos, "token_count 缺 text 报错");
+    }
   }
 
   std::cout << "=== 工具搜索 ===\n";

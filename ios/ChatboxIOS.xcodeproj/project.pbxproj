@@ -29,8 +29,10 @@
 		0005545AD033882C0CA9BBF8 /* crypto-tools.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 63518BD37B2EA55481598D66 /* crypto-tools.cpp */; };
 		4283026B3A17D4FC5BDC4735 /* net-tools.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 84D9C7DEE7484A4347B1A59F /* net-tools.cpp */; };
 		25B564188A9A419AFFD62BC4 /* web-tools.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F169671CF0916DB698EC5AFB /* web-tools.cpp */; };
+		E598FB5AD4252899022AE091 /* tokenizer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9004FCB8CBC9B127B4ECA724 /* tokenizer.cpp */; };
 		D4C7C5980CAD16CF53D1E9CE /* qr-core.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D993B14C1AC082E99518BE47 /* qr-core.cpp */; };
-		B0E577ABEEC621C97E3758CD /* tool_defs.json in Sources */ = {isa = PBXBuildFile; fileRef = D111937D7AB3D73F5BF0C69E /* tool_defs.json */; };
+		B0E577ABEEC621C97E3758CD /* tool_defs.json in Resources */ = {isa = PBXBuildFile; fileRef = D111937D7AB3D73F5BF0C69E /* tool_defs.json */; };
+		6D4549CAD95333FD84D68C59 /* tokenizer.bin in Resources */ = {isa = PBXBuildFile; fileRef = AC87CFAF94306855952FE253 /* tokenizer.bin */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -56,8 +58,10 @@
 		63518BD37B2EA55481598D66 /* crypto-tools.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ../tools/src/crypto-tools.cpp; sourceTree = SOURCE_ROOT; };
 		84D9C7DEE7484A4347B1A59F /* net-tools.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ../tools/src/net-tools.cpp; sourceTree = SOURCE_ROOT; };
 		F169671CF0916DB698EC5AFB /* web-tools.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ../tools/src/web-tools.cpp; sourceTree = SOURCE_ROOT; };
+		9004FCB8CBC9B127B4ECA724 /* tokenizer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ../tools/src/tokenizer.cpp; sourceTree = SOURCE_ROOT; };
 		D993B14C1AC082E99518BE47 /* qr-core.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ../tools/src/qr-core.cpp; sourceTree = SOURCE_ROOT; };
 		D111937D7AB3D73F5BF0C69E /* tool_defs.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ../tools/tool_defs.json; sourceTree = SOURCE_ROOT; };
+		AC87CFAF94306855952FE253 /* tokenizer.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = ../tools/tokenizer.bin; sourceTree = SOURCE_ROOT; };
 		41B45F571DF5C5968F31F905 /* DSBoxService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Bridge/DSBoxService.h; sourceTree = SOURCE_ROOT; };
 		EAD190D7CA0E7857F84EE185 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Supporting/AppDelegate.h; sourceTree = SOURCE_ROOT; };
 		75EA75C8DCD0E64F7C5C4395 /* DSConversationListController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Controllers/DSConversationListController.h; sourceTree = SOURCE_ROOT; };
@@ -84,6 +88,7 @@
 		1BFAF939F1B4A1B16AF67226 /* crypto-tools.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ../tools/include/crypto-tools.hpp; sourceTree = SOURCE_ROOT; };
 		0CBB69F6643149B6BA78A8D5 /* net-tools.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ../tools/include/net-tools.hpp; sourceTree = SOURCE_ROOT; };
 		7287AF61776A032DAAFBB5DA /* web-tools.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ../tools/include/web-tools.hpp; sourceTree = SOURCE_ROOT; };
+		A564F75D0C1838F9BF3A83C4 /* tokenizer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ../tools/include/tokenizer.hpp; sourceTree = SOURCE_ROOT; };
 		CFEE3B3179961C9132A204DA /* json.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ../vendor/json.hpp; sourceTree = SOURCE_ROOT; };
 		373E1CC0AA6896356197EB3A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = ChatboxIOS/Supporting/Info.plist; sourceTree = SOURCE_ROOT; };
 		91282309A9F761CC60469145 /* ChatboxIOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ChatboxIOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -218,8 +223,10 @@
 				63518BD37B2EA55481598D66 /* crypto-tools.cpp */,
 				84D9C7DEE7484A4347B1A59F /* net-tools.cpp */,
 				F169671CF0916DB698EC5AFB /* web-tools.cpp */,
+				9004FCB8CBC9B127B4ECA724 /* tokenizer.cpp */,
 				D993B14C1AC082E99518BE47 /* qr-core.cpp */,
 				D111937D7AB3D73F5BF0C69E /* tool_defs.json */,
+				AC87CFAF94306855952FE253 /* tokenizer.bin */,
 				24A71DE198F1219E826FADC1 /* include */,
 			);
 			name = tools;
@@ -302,6 +309,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B0E577ABEEC621C97E3758CD /* tool_defs.json in Resources */,
+				6D4549CAD95333FD84D68C59 /* tokenizer.bin in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -334,6 +342,7 @@
 				0005545AD033882C0CA9BBF8 /* crypto-tools.cpp in Sources */,
 				4283026B3A17D4FC5BDC4735 /* net-tools.cpp in Sources */,
 				25B564188A9A419AFFD62BC4 /* web-tools.cpp in Sources */,
+				E598FB5AD4252899022AE091 /* tokenizer.cpp in Sources */,
 				D4C7C5980CAD16CF53D1E9CE /* qr-core.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

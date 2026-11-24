@@ -66,6 +66,7 @@ cmake --build .build/native
 - [x] P0 纯字符串工具补齐（`regex_test` / `csv_json` / `slugify` / `id_validator` / `hex_view` / `color_convert` / `text_kit`）
 - [x] P1 `aes_crypto`（OpenSSL EVP，CBC/GCM/ECB，密文与 Web 版逐字节相同）
 - [x] P2 联网六件（`dns_lookup` / `port_check` / `local_ip` + `http_request` / `fetch_url` / `web_search`，libcurl + 本地 HTML 正文提取）
+- [x] P3 `token_count` 接真分词器（自实现 byte-level BPE，词表 3.91 MB 二进制，与 Web 版逐 token 一致）
 - [x] iOS UIKit 界面（Fragment 序列渲染 / 工具卡片三态 / 分支切换 / 附件 / 语音输入）
 - [x] 「继续生成」入口（以收尾正文为前缀续写，新内容拼回同一条消息）
 - [x] 附件落盘为沙盒文件（`Documents/attachments/`，库里只存相对路径，老库自动迁移）
