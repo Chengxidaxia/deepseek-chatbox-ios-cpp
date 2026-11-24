@@ -57,23 +57,27 @@ ctest --test-dir .build/native --output-on-failure
 
 ## 构建计数
 
-口径：**只要发起过一次编译，就算一次构建** —— 本机 `cmake`/`g++` 编译、`ctest`、云编译
-（GitHub Actions 每次 run）都 `+1`，成功失败都算。
+口径：**只要发起过一次编译，就算一次构建**，成功失败都算。
+
+| 触发点 | 怎么记 |
+|---|---|
+| 本机 `cmake --build`（含增量、什么都没变也算） | CMake 的 `build_count` 目标自动 +1，不用手动调 |
+| 本机 `ctest` | `build-local.sh` 记一次 `test` |
+| 云编译（Actions 每次 run） | workflow 自动记；分支构建号 = `build + 1`，回写仓库 |
+| tag 构建 | 号直接取 tag 名里的 `.buildN`，只编译不回写（tag 是快照） |
 
 `build-count.json` 里只有一个数 `build`，它**既是构建号、也是编译次数**，没有第二套编号：
 
 | 字段 | 含义 |
 |---|---|
-| `build` | 累计编译次数；tag 的 `.buildN` 与 `Info.plist` 的 `CFBundleVersion` 都用它 |
-| `since` | 计数器开始如实记录的时间点（此前的编译没有逐次留档） |
-| `history` | 最近 40 次编译的明细（时间 / 来源 local·test·ci / 成败 / run id / 说明） |
+| `build` | 累计编译次数；`Info.plist` 的 `CFBundleVersion` 与 tag 的 `.buildN` 都用它（CI 会注入，文件里的值只是本地构建的默认值） |
+| `since` | 计数器开始如实记录的时间点 |
+| `history` | 最近 40 条明细；其中 `n: "13~99"` 是占位——旧版本没有计数机制，那段没逐次留档 |
 
 ```bash
 python scripts/bump-build.py --show                       # 看当前构建号
-python scripts/bump-build.py --source local --note "..."  # 记一次本机编译（build +1）
+python scripts/bump-build.py --source local --note "..."  # 手动补记（一般用不到，CMake 已自动记）
 ```
-
-发版时直接取当前号：`--show` 得到 N → 写进 `Info.plist` 的 `CFBundleVersion` → 打 tag `vX.Y.Z.buildN`。
 
 云编译由 workflow 的 `Record build count` 步骤自动记，master 分支上会回写仓库
 （提交信息带 `[skip ci]`，不会再触发一轮）；tag 构建是 detached HEAD，只写进 run summary 不回写。

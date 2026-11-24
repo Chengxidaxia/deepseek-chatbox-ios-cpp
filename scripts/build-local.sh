@@ -16,15 +16,12 @@ RUN_TEST=1
 bump() { python "$ROOT/scripts/bump-build.py" --source "$1" --result "$2" --note "$3" >/dev/null || true; }
 
 echo "=== 配置 ==="
-cmake -S "$ROOT" -B "$BUILD" -G Ninja -DCMAKE_BUILD_TYPE=Debug || { bump local failed "cmake 配置失败"; exit 1; }
+cmake -S "$ROOT" -B "$BUILD" -G Ninja -DCMAKE_BUILD_TYPE=Debug || exit 1
 
+# 编译这一次由 CMake 的 build_count 目标自动记（每次 cmake --build 都 +1），
+# 这里不再重复记，否则一次编译会被算两次。
 echo "=== 编译 ==="
-if cmake --build "$BUILD"; then
-  bump local success "cmake --build 全量"
-else
-  bump local failed "cmake --build 全量"
-  exit 1
-fi
+cmake --build "$BUILD" || exit 1
 
 if [ "$RUN_TEST" = "1" ]; then
   echo "=== 测试 ==="

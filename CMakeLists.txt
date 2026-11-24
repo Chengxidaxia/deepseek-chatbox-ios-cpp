@@ -74,3 +74,17 @@ if(DSBOX_BUILD_TESTS AND NOT IOS)
     set_tests_properties(${name} PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
   endforeach()
 endif()
+
+# ---------------------------------------------------------------------------
+# 构建计数：口径是「编译一次算一次」，所以每次 cmake --build（含增量）都 +1。
+# 用 ALL 目标而不是 POST_BUILD：POST_BUILD 只在 target 真的重建时才触发，
+# 改个测试文件就不会记，那就不叫「编译了一次」了。
+# ---------------------------------------------------------------------------
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(Python3_Interpreter_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/bump-build.py")
+  add_custom_target(build_count ALL
+    COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/bump-build.py"
+            --source local --note "cmake --build"
+    COMMENT "记录构建次数"
+    VERBATIM)
+endif()
