@@ -175,6 +175,170 @@ int main() {
     CHECK(!r.ok, "text_kit 未知 action 报错");
   }
 
+  std::cout << "=== AES 加解密（对照 Web 版 / Node crypto 的黄金向量）===\n";
+  {
+    // 期望值全部由 `node -e` 用 crypto.createCipheriv 现算得出（Web 版跑的就是 Node crypto），
+    // 所以这些断言等价于「与 Web 版对同一明文/key/iv 逐字节相同」。
+    const std::string K128 = "0123456789abcdef";
+    const std::string K192 = "0123456789abcdef01234567";
+    const std::string K256 = "0123456789abcdef0123456789abcdef";
+    const std::string IV16 = "abcdef9876543210";
+    // IV16 的 hex：标签里放的是「输入编码名」，值固定 hex（Web 版如此）
+    const std::string IV16_HEX = "61626364656639383736353433323130";
+
+    // 取 data 里的字符串字段，缺失时返回占位符（失败用例的消息里不会因为缺字段而抛异常）
+    auto js = [](const ToolResult& t, const char* k) -> std::string {
+      if (t.data.is_object() && t.data.contains(k) && t.data[k].is_string())
+        return t.data[k].get<std::string>();
+      return "<none>";
+    };
+    auto encHex = [&](const std::string& key, const std::string& iv, const std::string& pt,
+                      const std::string& mode) {
+      json args = {{"action","encrypt"},{"text",pt},{"key",key},{"mode",mode},
+                   {"output_encoding","hex"}};
+      if (!iv.empty()) args["iv"] = iv;
+      return eng.call("aes_crypto", args);
+    };
+
+    // ---- CBC：128 / 192 / 256 位，11 字节明文 → PKCS#7 补到 16 字节 ----
+    auto r = encHex(K128, IV16, "hello world", "cbc");
+    CHECK(r.ok && js(r,"ciphertext")=="4dc2f2b42aab28100de8f7e16a71291b",
+          "AES-128-CBC 密文逐字节相同: " + js(r,"ciphertext"));
+    CHECK(r.text.find("模式 AES-128-CBC")!=std::string::npos, "CBC 文案模式名大写: " + r.text);
+    CHECK(r.text.find("iv(utf8) "+IV16_HEX)!=std::string::npos,
+          "CBC 文案 iv 行标签用输入编码、值用 hex");
+
+    r = encHex(K192, IV16, "hello world", "cbc");
+    CHECK(r.ok && js(r,"ciphertext")=="7bee3dec735db46ead387639925070fb", "AES-192-CBC 密文相同: " + js(r,"ciphertext"));
+    r = encHex(K256, IV16, "hello world", "cbc");
+    CHECK(r.ok && js(r,"ciphertext")=="e21532781397a447fe75577402519b54", "AES-256-CBC 密文相同: " + js(r,"ciphertext"));
+
+    // ---- ECB：无 iv ----
+    r = encHex(K128, "", "hello world", "ecb");
+    CHECK(r.ok && js(r,"ciphertext")=="8169bed4ef49a8874559c5b200daade7", "AES-128-ECB 密文相同: " + js(r,"ciphertext"));
+    CHECK(r.data.is_object() && r.data["iv"].is_null(), "ECB 不返回 iv");
+    r = encHex(K256, "", "hello world", "ecb");
+    CHECK(r.ok && js(r,"ciphertext")=="29ab5c74f8bbebab1840f68ef86e645c", "AES-256-ECB 密文相同: " + js(r,"ciphertext"));
+
+    // ---- 多块 CBC：32 字节明文 → 3 块 48 字节 ----
+    r = encHex(K128, IV16, "0123456789abcdef0123456789abcdef", "cbc");
+    CHECK(r.ok && r.data.contains("bytes") && r.data["bytes"]==48,
+          "多块 CBC 密文 48 字节: " + js(r,"ciphertext"));
+    CHECK(js(r,"ciphertext")=="2b6b52583127176effa0dd59361f7e157c31ec3f7330e4a856c6b8234e92edde797950d1913eb35f6d81351847393a3f",
+          "多块 CBC 密文相同");
+
+    // ---- UTF-8 中文明文（验证按字节而非字符喂给 EVP）----
+    r = encHex(K128, IV16, "你好，世界", "cbc");
+    CHECK(r.ok && js(r,"ciphertext")=="beb92ac1030044fc60fc7f85c57d15b7", "中文明文 CBC 密文相同: " + js(r,"ciphertext"));
+
+    // ---- 默认输出 base64 ----
+    r = eng.call("aes_crypto", {{"action","encrypt"},{"text","hello world"},{"key",K128},
+                               {"iv",IV16},{"mode","cbc"}});
+    CHECK(r.ok && js(r,"ciphertext")=="TcLytCqrKBAN6PfhanEpGw==", "CBC 默认输出 base64: " + js(r,"ciphertext"));
+    CHECK(r.text.find("密文(base64) TcLytCqrKBAN6PfhanEpGw==")!=std::string::npos, "CBC 文案 base64 密文行");
+
+    // ---- key / iv 的 hex 与 base64 编码应得到同一密文 ----
+    r = eng.call("aes_crypto", {{"action","encrypt"},{"text","hello world"},
+                               {"key","30313233343536373839616263646566"},{"key_encoding","hex"},
+                               {"iv",IV16_HEX},{"iv_encoding","hex"},
+                               {"mode","cbc"},{"output_encoding","hex"}});
+    CHECK(r.ok && js(r,"ciphertext")=="4dc2f2b42aab28100de8f7e16a71291b", "hex 编码的 key/iv 结果相同: " + js(r,"ciphertext"));
+    r = eng.call("aes_crypto", {{"action","encrypt"},{"text","hello world"},
+                               {"key","MDEyMzQ1Njc4OWFiY2RlZg=="},{"key_encoding","base64"},
+                               {"iv",IV16},{"mode","cbc"},{"output_encoding","hex"}});
+    CHECK(r.ok && js(r,"ciphertext")=="4dc2f2b42aab28100de8f7e16a71291b", "base64 编码的 key 结果相同: " + js(r,"ciphertext"));
+
+    // ---- 解密往返 ----
+    r = eng.call("aes_crypto", {{"action","decrypt"},{"text","4dc2f2b42aab28100de8f7e16a71291b"},
+                               {"input_encoding","hex"},{"key",K128},{"iv",IV16},{"mode","cbc"}});
+    CHECK(r.ok && r.text=="hello world", "CBC 解密往返(hex 进): " + r.text);
+    CHECK(js(r,"hex")=="68656c6c6f20776f726c64", "解密返回明文 hex: " + js(r,"hex"));
+    r = eng.call("aes_crypto", {{"action","decrypt"},{"text","TcLytCqrKBAN6PfhanEpGw=="},
+                               {"key",K128},{"iv",IV16},{"mode","cbc"}});
+    CHECK(r.ok && r.text=="hello world", "CBC 解密往返(base64 进): " + r.text);
+    r = eng.call("aes_crypto", {{"action","decrypt"},{"text","8169bed4ef49a8874559c5b200daade7"},
+                               {"input_encoding","hex"},{"key",K128},{"mode","ecb"}});
+    CHECK(r.ok && r.text=="hello world", "ECB 解密往返: " + r.text);
+
+    // ---- GCM 用例 2（全零 key / iv / 16 字节全零明文，McGrew-Viega）----
+    r = eng.call("aes_crypto", {{"action","encrypt"},{"text",std::string(16,'\0')},
+                               {"key",std::string(16,'\0')},{"iv",std::string(12,'\0')},
+                               {"mode","gcm"},{"output_encoding","hex"}});
+    CHECK(r.ok && js(r,"ciphertext")=="0388dace60b6a392f328c2b971b2fe78", "GCM 用例2 密文相同: " + js(r,"ciphertext"));
+    CHECK(js(r,"tag")=="q25H1CzsE731OmeyEle93w==",
+          "GCM 用例2 tag 相同（base64 of ab6e47d4…bddf）: " + js(r,"tag"));
+    CHECK(r.text.find("tag(base64) ")!=std::string::npos, "GCM 文案带 tag 行");
+
+    // ---- GCM：hello world，key 16 字节 / iv 12 字节 ----
+    r = eng.call("aes_crypto", {{"action","encrypt"},{"text","hello world"},{"key",K128},
+                               {"iv","abcdef987654"},{"mode","gcm"},{"output_encoding","hex"}});
+    CHECK(r.ok && js(r,"ciphertext")=="0b8bd522fb8d72557a93b2", "GCM 密文相同: " + js(r,"ciphertext"));
+    CHECK(js(r,"tag")=="5svflvibIrc56cVV3FJFYw==", "GCM tag 相同: " + js(r,"tag"));
+    r = eng.call("aes_crypto", {{"action","decrypt"},{"text","0b8bd522fb8d72557a93b2"},
+                               {"input_encoding","hex"},{"key",K128},{"iv","abcdef987654"},
+                               {"mode","gcm"},{"tag","5svflvibIrc56cVV3FJFYw=="}});
+    CHECK(r.ok && r.text=="hello world", "GCM 解密往返: " + r.text);
+
+    // ---- GCM 多块：60 字节明文（4 块），key/iv 走 hex 编码 ----
+    // 工具的 text 参数是 UTF-8 明文字符串（没有 text_encoding），所以这里用 60 个 ASCII 字符，
+    // 期望值同样由 node 现算。
+    const std::string PT60 = "012345678901234567890123456789012345678901234567890123456789";
+    r = eng.call("aes_crypto", {{"action","encrypt"},{"text",PT60},
+                               {"key","feffe9928665731c6d6a8f9467308308"},{"key_encoding","hex"},
+                               {"iv","cafebabefacedbaddecaf888"},{"iv_encoding","hex"},
+                               {"mode","gcm"},{"output_encoding","hex"}});
+    CHECK(r.ok && js(r,"ciphertext")==
+          "ab831ed4edc644f6d61218431916c633533ab045090761092fb878299ba41b6d"
+          "0fda2c12f739a2766271564dd117291792f0d6fdf2347ef5b10ca391",
+          "GCM 多块密文相同: " + js(r,"ciphertext"));
+    CHECK(js(r,"tag")=="8xrLRebsi1PTHAMwAnFeOQ==", "GCM 多块 tag 相同: " + js(r,"tag"));
+    // 密文是 hex、tag 是 base64 的混合编码也要能自洽解开（tag 兜底按 base64 重解）
+    r = eng.call("aes_crypto", {{"action","decrypt"},
+                               {"text","53df8b7da098330d30c6e6ef7cdc59389ecf0a09dbb58617ad2dac0c17205bf6"
+                                        "b89e0f8d851eceaaa0eedf9ba9c91eeee6baeeaee0726421444c6239"},
+                               {"input_encoding","hex"},{"key",K128},{"iv","abcdef987654"},
+                               {"mode","gcm"},{"tag","aKNO173xaZbwollMsm0pmg=="}});
+    CHECK(r.ok && r.text==PT60, "GCM 解密往返（密文 hex + tag base64）: " + r.text);
+
+    // ---- 256 位 GCM ----
+    r = eng.call("aes_crypto", {{"action","encrypt"},{"text","hello world"},{"key",K256},
+                               {"iv","abcdef987654"},{"mode","gcm"},{"output_encoding","hex"}});
+    CHECK(r.ok && js(r,"ciphertext")=="b78c4d78a839c17a203941", "AES-256-GCM 密文相同: " + js(r,"ciphertext"));
+
+    // ---- 错误分支 ----
+    r = eng.call("aes_crypto", {{"action","encrypt"},{"text","x"},{"key","too-short-key"},
+                               {"iv",IV16},{"mode","cbc"}});
+    CHECK(!r.ok && r.text.find("16/24/32")!=std::string::npos, "key 长度非法报错: " + r.text);
+    r = eng.call("aes_crypto", {{"action","encrypt"},{"text","x"},{"key",K128},{"mode","cbc"}});
+    CHECK(!r.ok && r.text.find("需要 iv")!=std::string::npos, "CBC 缺 iv 报错: " + r.text);
+    r = eng.call("aes_crypto", {{"action","encrypt"},{"text","x"},{"key",K128},{"iv","short"},{"mode","cbc"}});
+    CHECK(!r.ok && r.text.find("16 字节")!=std::string::npos, "CBC iv 长度非法报错: " + r.text);
+    r = eng.call("aes_crypto", {{"action","decrypt"},{"text","0b8bd522fb8d72557a93b2"},
+                               {"input_encoding","hex"},{"key",K128},{"iv","abcdef987654"},{"mode","gcm"}});
+    CHECK(!r.ok && r.text.find("需要 tag")!=std::string::npos, "GCM 解密缺 tag 报错: " + r.text);
+    r = eng.call("aes_crypto", {{"action","decrypt"},{"text","0b8bd522fb8d72557a93b2"},
+                               {"input_encoding","hex"},{"key",K128},{"iv","abcdef987654"},
+                               {"mode","gcm"},{"tag","e6cbdf96f89b22b739e9c555dc524562"}});
+    CHECK(!r.ok && r.text.find("解密失败")!=std::string::npos, "GCM tag 被改报错: " + r.text);
+    r = eng.call("aes_crypto", {{"action","decrypt"},{"text","4dc2f2b42aab28100de8f7e16a71291c"},
+                               {"input_encoding","hex"},{"key",K128},{"iv",IV16},{"mode","cbc"}});
+    CHECK(!r.ok && r.text.find("解密失败")!=std::string::npos, "CBC 密文被改报错: " + r.text);
+    r = eng.call("aes_crypto", {{"action","encrypt"},{"text","x"},{"key",K128},{"iv",IV16},{"mode","xts"}});
+    CHECK(!r.ok && r.text.find("cbc / gcm / ecb")!=std::string::npos, "mode 非法报错: " + r.text);
+    r = eng.call("aes_crypto", {{"action","sign"},{"text","x"},{"key",K128}});
+    CHECK(!r.ok && r.text.find("encrypt 或 decrypt")!=std::string::npos, "action 非法报错: " + r.text);
+    r = eng.call("aes_crypto", {{"action","encrypt"},{"text","x"},{"key","zzzzzzzzzzzzzzzz"},
+                               {"key_encoding","hex"},{"iv",IV16},{"mode","cbc"}});
+    CHECK(!r.ok, "key 含非法 hex 报错: " + r.text);
+
+    // ---- 解密出非 UTF-8 字节时要给提示 ----
+    r = eng.call("aes_crypto", {{"action","encrypt"},{"text",std::string("\xff\xfe\xfd\xfc",4)},
+                               {"key",K128},{"iv",IV16},{"mode","cbc"},{"output_encoding","hex"}});
+    CHECK(r.ok, "二进制明文可加密: " + r.text);
+    r = eng.call("aes_crypto", {{"action","decrypt"},{"text",js(r,"ciphertext")},
+                               {"input_encoding","hex"},{"key",K128},{"iv",IV16},{"mode","cbc"}});
+    CHECK(r.ok && r.text.find("不是合法 UTF-8")!=std::string::npos, "非法 UTF-8 明文有提示: " + r.text);
+  }
   std::cout << "=== 工具搜索 ===\n";
   {
     auto hits = eng.search("计算表达式", 3);

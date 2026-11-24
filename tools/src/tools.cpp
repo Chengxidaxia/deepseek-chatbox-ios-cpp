@@ -1,5 +1,6 @@
 // 内置工具引擎实现：对照 Web 版 tools-browser.js。
 #include "tools.hpp"
+#include "crypto-tools.hpp"
 #include "qr-core.hpp"
 #include "text-tools.hpp"
 #include "util.hpp"
@@ -643,9 +644,8 @@ static ToolResult callImpl(const std::string& name, const json& a, const ToolCon
   if (name == "hex_view")      return texttools::hexView(a);
   if (name == "color_convert") return texttools::colorConvert(a);
   if (name == "text_kit")      return texttools::textKit(a);
-  if (name == "aes_crypto") {
-    return fail("AES 工具需 Web Crypto，C++ 版请用专门的加解密接口。");
-  }
+  // --- P1 加解密（实现见 tools/src/crypto-tools.cpp）---
+  if (name == "aes_crypto")    return cryptotools::aesCrypto(a);
   if (name == "qr_text") {
     std::string text=util::trim(sarg(a,"text"));
     if(text.empty())return fail("缺少 text 参数。");
