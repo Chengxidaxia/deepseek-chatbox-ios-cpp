@@ -1,0 +1,1133 @@
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "get_balance",
+      "description": "查询当前 DeepSeek 账号余额（总余额、赠金、充值余额、是否可用）。用户问「我还有多少钱/余额」时使用。",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "list_models",
+      "description": "列出当前可用的 DeepSeek 模型，包含 id、上下文窗口、最大输出与是否支持图片输入。",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "current_time",
+      "description": "获取本机的当前日期、时间、星期与时区。用户问「现在几点/今天几号」时使用。",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "search_history",
+      "description": "在本地历史对话里按关键词搜索，返回匹配的对话标题、时间和出处片段。用户提到「之前聊过的…」时使用。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "搜索关键词"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "返回条数，默认 5，最大 20"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "usage_stats",
+      "description": "统计本地保存的对话数量、消息条数，以及累计输入/输出 token 与缓存命中情况。",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "meta": {
+      "web": "search"
+    },
+    "type": "function",
+    "function": {
+      "name": "web_search",
+      "description": "联网搜索（本机执行，走 Bing 等搜索引擎）。返回标题、链接与摘要，用于获取实时或你不确定的信息：新闻、价格、版本发布、人物近况、赛事比分、政策法规、产品参数等。拿到结果后若摘要不足以回答，再调用 fetch_url 打开其中最相关的 1-3 个链接读原文。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "搜索关键词，尽量具体，可带年份或站点名"
+          },
+          "count": {
+            "type": "integer",
+            "description": "返回条数，默认 8，最大 10"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "meta": {
+      "web": "fetch"
+    },
+    "type": "function",
+    "function": {
+      "name": "fetch_url",
+      "description": "抓取指定网页并提取正文纯文本（自动去导航、脚本与广告，超长会截断）。用于打开搜索结果里的链接、核对原文，或读取用户给出的网址。只支持公开的 http / https 页面。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "完整网址，必须带 http:// 或 https://"
+          },
+          "max_chars": {
+            "type": "integer",
+            "description": "正文最多返回多少字符，默认 8000，最大 40000"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "calculator",
+      "description": "计算数学表达式。支持 + - * / % ^ 括号、sqrt/abs/round/floor/ceil/min/max/pow/log/exp 函数与 PI、E 常量。用户要算账、换算、求值且不想自己按计算器时使用。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "expression": {
+            "type": "string",
+            "description": "表达式，如 (128*0.85+32)/3 或 sqrt(2)*PI"
+          },
+          "precision": {
+            "type": "integer",
+            "description": "结果保留小数位，默认 6"
+          }
+        },
+        "required": [
+          "expression"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "hash_text",
+      "description": "计算文本的 MD5 / SHA1 / SHA256 / SHA512 哈希值（十六进制）。用于校验、生成摘要、比对文件指纹文本。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "要哈希的文本"
+          },
+          "algorithm": {
+            "type": "string",
+            "description": "md5 / sha1 / sha256 / sha512，默认 sha256"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "base64_codec",
+      "description": "Base64 编码或解码文本（UTF-8 安全，支持中文）。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "输入文本"
+          },
+          "mode": {
+            "type": "string",
+            "description": "encode 或 decode，默认 encode"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "url_codec",
+      "description": "URL 编码 / 解码一段文本（encodeURIComponent / decodeURIComponent）。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "输入文本，如查询参数值或整段 URL"
+          },
+          "mode": {
+            "type": "string",
+            "description": "encode 或 decode，默认 encode"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "json_format",
+      "description": "校验并格式化 JSON 文本，可按点路径提取其中一段。用户给了 JSON 串要整理、校验或取某个字段时使用。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "json": {
+            "type": "string",
+            "description": "JSON 文本"
+          },
+          "indent": {
+            "type": "integer",
+            "description": "缩进空格数，默认 2"
+          },
+          "path": {
+            "type": "string",
+            "description": "可选点路径，如 data.items.0.name"
+          }
+        },
+        "required": [
+          "json"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "text_stats",
+      "description": "统计文本的字符数、字数、行数、段落数、中英文词数。用户要数文章字数、统计行数时使用。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "要统计的文本"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "uuid_gen",
+      "description": "生成 UUID v4 随机标识符，可一次生成多个。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "description": "生成数量，默认 1，最大 50"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "random_pick",
+      "description": "在给定范围内取随机整数，或从候选列表里随机抽取若干项。用户要抽签、随机选时使用。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "min": {
+            "type": "integer",
+            "description": "随机整数下限（含）"
+          },
+          "max": {
+            "type": "integer",
+            "description": "随机整数上限（含）"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "候选列表，与 min/max 二选一"
+          },
+          "count": {
+            "type": "integer",
+            "description": "抽取数量，默认 1"
+          },
+          "unique": {
+            "type": "boolean",
+            "description": "抽取是否不重复，默认 false"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "dns_lookup",
+      "description": "把域名解析为 IPv4/IPv6 地址（本机 DNS）。用户问某个域名对应什么 IP、或要确认域名能否解析时使用。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "hostname": {
+            "type": "string",
+            "description": "域名，如 www.deepseek.com"
+          },
+          "family": {
+            "type": "integer",
+            "description": "4 / 6 / 0（全部），默认 0"
+          }
+        },
+        "required": [
+          "hostname"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "port_check",
+      "description": "探测目标主机端口是否可连通（TCP 连接测试）。用户问某个服务端口通不通、网站/游戏服务器是否在线时使用。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "host": {
+            "type": "string",
+            "description": "主机名或 IP，如 example.com"
+          },
+          "port": {
+            "type": "integer",
+            "description": "端口 1-65535"
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "description": "超时毫秒，默认 3000，最大 15000"
+          }
+        },
+        "required": [
+          "host",
+          "port"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "http_request",
+      "description": "发送一个 HTTP 请求，返回状态码、响应头摘要和正文片段（默认前 6000 字）。用于调公开 API、查看网页状态或接口返回。仅允许公网 http(s)，本机与保留地址会被拒绝。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "完整 URL"
+          },
+          "method": {
+            "type": "string",
+            "description": "GET / POST / PUT / DELETE / HEAD，默认 GET"
+          },
+          "headers": {
+            "type": "object",
+            "description": "请求头对象，如 {\"Authorization\":\"Bearer xxx\"}"
+          },
+          "body": {
+            "type": "string",
+            "description": "请求体文本（POST/PUT 时）"
+          },
+          "max_chars": {
+            "type": "integer",
+            "description": "正文最多返回多少字符，默认 6000，最大 30000"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "local_ip",
+      "description": "列出本机的 IPv4/IPv6 网络接口地址（网卡名与 IP）。用户问本机 IP、局域网 IP 时使用。",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "base_convert",
+      "description": "数字进制转换：2 / 8 / 10 / 16 之间互转。用户要二进制、十六进制与十进制互转时使用。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "description": "数字文本，如 255 或 ff"
+          },
+          "from": {
+            "type": "integer",
+            "description": "源进制 2/8/10/16，默认 10"
+          },
+          "to": {
+            "type": "integer",
+            "description": "目标进制 2/8/10/16，默认 16"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "percentage",
+      "description": "百分比计算：求占比、增长率、折扣价、A 占 B 的百分比、在原价上加减百分比。用户要算折扣、涨幅、占比时使用。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "description": "ratio（a 占 b 百分之几）/ growth（从 a 到 b 增长率）/ discount（原价 a 打 b 折后价格，b 用百分数如 75 表示 7.5 折）/ increase（a 增加 b% 后是多少）"
+          },
+          "a": {
+            "type": "number",
+            "description": "第一个数（原价 / 原值 / 分子）"
+          },
+          "b": {
+            "type": "number",
+            "description": "第二个数（对比值 / 折扣 / 分母 / 百分比）"
+          }
+        },
+        "required": [
+          "mode",
+          "a",
+          "b"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "date_diff",
+      "description": "计算两个日期之间相差的天数/小时/分钟，或某日期距今多久。用户问间隔多少天、倒计时、已经过去多久时使用。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "description": "起始日期，如 2026-01-01 或 ISO；留空则用当前时间"
+          },
+          "to": {
+            "type": "string",
+            "description": "结束日期；留空则用当前时间"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "unit_convert",
+      "description": "常用单位换算：长度（km/m/cm/mm/inch/ft/mile）、重量（kg/g/lb/oz）、温度（C/F/K）、数据大小（B/KB/MB/GB/TB）、时间（s/min/h/day）。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "number",
+            "description": "数值"
+          },
+          "from": {
+            "type": "string",
+            "description": "源单位，如 km / C / MB"
+          },
+          "to": {
+            "type": "string",
+            "description": "目标单位，如 mile / F / GB"
+          }
+        },
+        "required": [
+          "value",
+          "from",
+          "to"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "regex_test",
+      "description": "用正则匹配文本，返回匹配结果与分组（支持命名组）。用户要验证正则、提取文本片段、批量查找时用。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "description": "正则表达式，不含两侧的 /"
+          },
+          "flags": {
+            "type": "string",
+            "description": "标志位，如 gi / gm，默认 g"
+          },
+          "text": {
+            "type": "string",
+            "description": "待匹配文本"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "最多返回多少条匹配，默认 20，最大 100"
+          }
+        },
+        "required": [
+          "pattern",
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "diff_text",
+      "description": "逐行比较两段文本，返回新增行、删除行与未变化行数。用户要对比两段文字/代码差异、看改了什么时用。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "a": {
+            "type": "string",
+            "description": "原文"
+          },
+          "b": {
+            "type": "string",
+            "description": "新文"
+          },
+          "context": {
+            "type": "boolean",
+            "description": "是否保留未变化的行，默认 false（只显示差异）"
+          }
+        },
+        "required": [
+          "a",
+          "b"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "csv_json",
+      "description": "CSV 与 JSON 互转：toJson 把 CSV 文本（首行为表头）转成对象数组，toCsv 把对象数组转成 CSV。用户要转换表格数据、导出导入数据时用。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "description": "toJson 或 toCsv"
+          },
+          "text": {
+            "type": "string",
+            "description": "CSV 文本（toJson）或 JSON 数组文本（toCsv）"
+          },
+          "delimiter": {
+            "type": "string",
+            "description": "分隔符，默认逗号"
+          }
+        },
+        "required": [
+          "mode",
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "slugify",
+      "description": "把标题/中文文本转成 URL 或文件名安全的标识（小写、去符号、空格转连字符；中文默认保留，可转拼音式占位）。用户要生成链接别名、文件名、锚点时用。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "输入文本"
+          },
+          "separator": {
+            "type": "string",
+            "description": "连接符，默认 -"
+          },
+          "lower": {
+            "type": "boolean",
+            "description": "是否转小写，默认 true"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "password_gen",
+      "description": "生成随机密码并估算强度。可指定长度、是否包含大小写/数字/符号、排除易混淆字符。用户要生成安全密码或令牌时用。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "length": {
+            "type": "integer",
+            "description": "长度，默认 16，最大 128"
+          },
+          "upper": {
+            "type": "boolean",
+            "description": "含大写，默认 true"
+          },
+          "lower": {
+            "type": "boolean",
+            "description": "含小写，默认 true"
+          },
+          "digits": {
+            "type": "boolean",
+            "description": "含数字，默认 true"
+          },
+          "symbols": {
+            "type": "boolean",
+            "description": "含符号，默认 true"
+          },
+          "excludeAmbiguous": {
+            "type": "boolean",
+            "description": "排除 0/O/l/1/I 等易混淆字符，默认 true"
+          },
+          "count": {
+            "type": "integer",
+            "description": "生成几个，默认 1，最大 20"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "id_validator",
+      "description": "校验常见编号格式：中国身份证（含校验位）、邮箱、中国大陆手机号、IPv4、UUID。用户要验证填的号码/邮箱/地址是否合法时用。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "idcard / email / phone / ipv4 / uuid"
+          },
+          "value": {
+            "type": "string",
+            "description": "待校验的值"
+          }
+        },
+        "required": [
+          "type",
+          "value"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "timestamp_convert",
+      "description": "时间戳与日期互转：秒/毫秒时间戳转可读日期，或日期字符串转时间戳，支持时区偏移。用户问某时间戳是什么时间、或要拿日期的时间戳时用。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "description": "时间戳（纯数字）或日期字符串，如 1700000000 或 2026-11-23 12:00:00"
+          },
+          "unit": {
+            "type": "string",
+            "description": "输入是纯数字时的单位：s / ms，默认自动判断"
+          },
+          "offsetHours": {
+            "type": "number",
+            "description": "显示的时区偏移小时数，默认按本机时区"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "json_minify",
+      "description": "压缩 JSON：去掉空白与换行，保留结构。用户要把 JSON 压成一行、减小体积时用（与 json_format 相反）。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "json": {
+            "type": "string",
+            "description": "JSON 文本"
+          }
+        },
+        "required": [
+          "json"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "token_count",
+      "description": "用 DeepSeek V4.1-Flash 分词器（API 名 deepseek-flash，与 V4-Pro/V3 共用词表）精确计算文本的 token 数，可返回每个 token 的 id 与片段。用户问这段文字多少 token、是否超上下文、估算费用时用。本地离线计算，不调用 API、不产生费用。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "要计算的文本"
+          },
+          "detail": {
+            "type": "boolean",
+            "description": "是否返回 token id 与片段列表，默认 false"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "qr_text",
+      "description": "把文本或网址生成二维码，保存成本机 PNG 图片并返回文件路径与尺寸；也可以返回终端字符画。用户要生成二维码、让手机扫码打开链接时用。支持到版本 40（单张最多 2953 字节 @L 级），内容 16KB 以内会自动切成多张并按 #i/N 编号。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "要编码的内容，最多 16384 字节；超过单张容量（2953 字节 @L）会自动切成多张带 #i/N 编号的二维码"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "L",
+              "M",
+              "Q",
+              "H"
+            ],
+            "description": "纠错等级，默认 M（越高越抗污损，容量越小）"
+          },
+          "scale": {
+            "type": "integer",
+            "description": "每个模块的像素数，默认 8，范围 2-20"
+          },
+          "ascii": {
+            "type": "boolean",
+            "description": "是否同时返回终端字符画二维码，默认 false"
+          },
+          "filename": {
+            "type": "string",
+            "description": "文件名（不含扩展名），默认按时间生成"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "stat_calc",
+      "description": "对一串数字做统计：个数、总和、均值、中位数、众数、最值、极差、方差与标准差（样本/总体）、四分位数与 IQR、异常值。用户要算平均值、波动、分位数、找离群点时用。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "numbers": {
+            "type": "string",
+            "description": "数字列表，用逗号/空格/换行分隔，如 \"12, 15, 9, 22\""
+          },
+          "precision": {
+            "type": "integer",
+            "description": "保留几位小数，默认 4，最大 10"
+          }
+        },
+        "required": [
+          "numbers"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "hex_view",
+      "description": "十六进制查看与还原：toHex 把文本转成带偏移和 ASCII 侧栏的 hex dump；fromHex 把十六进制串（支持空格、0x、逗号分隔）还原成文本。用户要看字节、读二进制残留、还原 hex 串时用。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "toHex",
+              "fromHex"
+            ],
+            "description": "toHex=文本转十六进制；fromHex=十六进制还原文本"
+          },
+          "text": {
+            "type": "string",
+            "description": "输入内容"
+          },
+          "bytes_per_line": {
+            "type": "integer",
+            "description": "每行字节数，默认 16，传 0 表示不分行"
+          }
+        },
+        "required": [
+          "mode",
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "color_convert",
+      "description": "颜色格式互转与对比度计算：输入 #RRGGBB、rgb()、hsl() 或 color 名称，输出 HEX、RGB、HSL、HSV、相对亮度、与白/黑的 WCAG 对比度，并判断偏深还是偏浅。用户调色、检查文字可读性时用。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "color": {
+            "type": "string",
+            "description": "颜色，如 #1e90ff、rgb(30,144,255)、hsl(210,100%,56%)"
+          },
+          "background": {
+            "type": "string",
+            "description": "可选：再算一个与背景色的对比度，如 #ffffff"
+          }
+        },
+        "required": [
+          "color"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "text_kit",
+      "description": "文本批量处理工具箱：dedupe 去重、sort 排序（字典/数字/长度）、trim 清理空行与多余空白、wrap 加前后缀、split 按分隔符拆行、case 命名风格转换（camel/snake/kebab/pascal/const/upper/lower/title）。用户要整理名单、清洗数据、改命名风格时用。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "dedupe",
+              "sort",
+              "trim",
+              "wrap",
+              "split",
+              "case"
+            ],
+            "description": "要做的处理"
+          },
+          "text": {
+            "type": "string",
+            "description": "输入文本（按行处理）"
+          },
+          "ignore_case": {
+            "type": "boolean",
+            "description": "去重/排序时忽略大小写，默认 false"
+          },
+          "desc": {
+            "type": "boolean",
+            "description": "排序是否倒序，默认 false"
+          },
+          "numeric": {
+            "type": "boolean",
+            "description": "排序是否按数值大小，默认 false"
+          },
+          "prefix": {
+            "type": "string",
+            "description": "wrap 时给每行加的前缀"
+          },
+          "suffix": {
+            "type": "string",
+            "description": "wrap 时给每行加的后缀"
+          },
+          "delimiter": {
+            "type": "string",
+            "description": "split 的分隔符，默认按换行"
+          },
+          "case_type": {
+            "type": "string",
+            "enum": [
+              "camel",
+              "snake",
+              "kebab",
+              "pascal",
+              "const",
+              "upper",
+              "lower",
+              "title"
+            ],
+            "description": "case 动作的目标风格"
+          }
+        },
+        "required": [
+          "action",
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "aes_crypto",
+      "description": "AES 对称加解密（CBC/GCM/ECB）：支持 hex/base64 编码的 key 与 iv，GCM 会返回 auth tag。用户要解接口加密参数、复现前端加密结果、校验对称加解密时用。key 长度必须是 16/24/32 字节（128/192/256 位）。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "encrypt",
+              "decrypt"
+            ],
+            "description": "加密或解密"
+          },
+          "text": {
+            "type": "string",
+            "description": "明文（encrypt）或密文（decrypt）"
+          },
+          "key": {
+            "type": "string",
+            "description": "密钥，按 key_encoding 解释"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "cbc",
+              "gcm",
+              "ecb"
+            ],
+            "description": "工作模式，默认 cbc"
+          },
+          "iv": {
+            "type": "string",
+            "description": "初始向量，CBC/GCM 必填（GCM 一般 12 字节，CBC 16 字节）"
+          },
+          "tag": {
+            "type": "string",
+            "description": "GCM 解密时的 auth tag，按 input_encoding 解释"
+          },
+          "key_encoding": {
+            "type": "string",
+            "enum": [
+              "utf8",
+              "hex",
+              "base64"
+            ],
+            "description": "key 的编码，默认 utf8"
+          },
+          "iv_encoding": {
+            "type": "string",
+            "enum": [
+              "utf8",
+              "hex",
+              "base64"
+            ],
+            "description": "iv 的编码，默认 utf8"
+          },
+          "input_encoding": {
+            "type": "string",
+            "enum": [
+              "utf8",
+              "hex",
+              "base64"
+            ],
+            "description": "decrypt 时密文/tag 的编码，默认 base64"
+          },
+          "output_encoding": {
+            "type": "string",
+            "enum": [
+              "base64",
+              "hex"
+            ],
+            "description": "encrypt 时输出的编码，默认 base64"
+          }
+        },
+        "required": [
+          "action",
+          "text",
+          "key"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "find_tool",
+      "description": "搜索本机可用的工具目录，或用 action=\"list\" 列出全部工具。当你觉得现有工具不够用、或需要确认有没有能做某件事的工具时调用它。传入任务描述会返回最相关的工具及完整参数定义；传 action=\"list\" 则返回全部工具的名字与一句话说明。返回的工具会在下一轮自动可用，可直接调用。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "search",
+              "list"
+            ],
+            "description": "list=列出全部工具目录（只要名字+一句话说明）；search=按 query 检索，默认 search"
+          },
+          "query": {
+            "type": "string",
+            "description": "你想做什么，如「把中文翻译成英文」「检查端口是否开放」「算 token 数」。action=search 时必填；action=list 时可省略"
+          },
+          "top_k": {
+            "type": "integer",
+            "description": "search 时返回几个工具，默认 5，最大 10"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "meta": {
+      "cmd": true
+    },
+    "type": "function",
+    "function": {
+      "name": "cmd_run",
+      "description": "【危险】在本机 Windows cmd.exe 执行一条命令并返回输出。只在用户明确要求执行本机命令、且设置里开启了「命令执行」开关时可用。可以运行 dir、ipconfig、ping、type 等任意 cmd 指令。有 30 秒默认超时与输出上限；工作目录可用 cwd 指定。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "string",
+            "description": "要执行的 cmd 命令，如 dir 或 ping -n 2 127.0.0.1"
+          },
+          "cwd": {
+            "type": "string",
+            "description": "可选工作目录（绝对路径），默认服务所在目录"
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "description": "超时毫秒，默认 30000，最大 120000"
+          }
+        },
+        "required": [
+          "command"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+]
