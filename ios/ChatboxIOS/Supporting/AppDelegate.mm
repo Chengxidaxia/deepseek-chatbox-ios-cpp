@@ -93,7 +93,7 @@ static void DSSignalHandler(int sig) {
   if (g_crashPath[0]) {
     int fd = open(g_crashPath, O_WRONLY | O_CREAT | O_APPEND, 0644);
     if (fd >= 0) {
-      char buf[160];
+      char buf[320];   // 中文说明按 UTF-8 算字节，留够，否则 -Wformat-truncation
       int n = snprintf(buf, sizeof(buf),
                        "类型: 致命信号 %d %s\n"
                        "（信号上下文不能调 Foundation，所以这里没有调用栈；"
