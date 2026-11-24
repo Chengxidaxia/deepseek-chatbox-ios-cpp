@@ -27,7 +27,7 @@
 @property (nonatomic, strong) UILabel *toolLabel;
 @property (nonatomic, strong) UIStackView *footerStack;
 @property (nonatomic, strong) UILabel *usageLabel;
-@property (nonatomic, strong) UIButton *copyButton;
+@property (nonatomic, strong) UIButton *btnCopy;
 @property (nonatomic, strong) UIButton *regenButton;
 // 状态
 @property (nonatomic, strong, readwrite, nullable) NSDictionary *message;
@@ -135,14 +135,14 @@
   _usageLabel.font = [DSTheme usageFont];
   _usageLabel.textColor = [DSTheme labelCaption];
 
-  _copyButton = [self footerButtonWithTitle:DSStrCopy action:@selector(copyTapped)];
+  _btnCopy = [self footerButtonWithTitle:DSStrCopy action:@selector(onCopyTapped)];
   _regenButton = [self footerButtonWithTitle:DSStrRegenerate action:@selector(regenTapped)];
 
   UIView *spacer = [[UIView alloc] init];
   [spacer setContentHuggingPriority:UILayoutPriorityDefaultLow
                             forAxis:UILayoutConstraintAxisHorizontal];
 
-  _footerStack = [[UIStackView alloc] initWithArrangedSubviews:@[_usageLabel, spacer, _copyButton, _regenButton]];
+  _footerStack = [[UIStackView alloc] initWithArrangedSubviews:@[_usageLabel, spacer, _btnCopy, _regenButton]];
   _footerStack.axis = UILayoutConstraintAxisHorizontal;
   _footerStack.spacing = 12;
   _footerStack.alignment = UIStackViewAlignmentCenter;
@@ -249,11 +249,11 @@
     _usageLabel.hidden = YES;
     _usageLabel.text = nil;
   }
-  _copyButton.hidden = streaming || content.length == 0;
+  _btnCopy.hidden = streaming || content.length == 0;
   // 「再试一次」需要「替换指定消息」的服务端能力，当前 core 尚未提供，
   // 先隐藏按钮而不是给一个会追加重复消息的假功能。
   _regenButton.hidden = YES;
-  _footerStack.hidden = _usageLabel.hidden && _copyButton.hidden;
+  _footerStack.hidden = _usageLabel.hidden && _btnCopy.hidden;
 }
 
 #pragma mark - 交互
@@ -277,7 +277,7 @@
   return [v isKindOfClass:UITableView.class] ? (UITableView *)v : nil;
 }
 
-- (void)copyTapped {
+- (void)onCopyTapped {
   NSString *text = self.message[@"content"] ?: @"";
   if (text.length == 0) return;
   UIPasteboard.generalPasteboard.string = text;
