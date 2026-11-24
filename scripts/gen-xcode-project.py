@@ -20,10 +20,12 @@ OBJC_SOURCES = [
     'ios/ChatboxIOS/Supporting/main.m',
     'ios/ChatboxIOS/Supporting/AppDelegate.mm',
     'ios/ChatboxIOS/Bridge/DSBoxService.mm',
-    'ios/ChatboxIOS/Controllers/DSConversationListController.mm',
-    'ios/ChatboxIOS/Controllers/DSChatViewController.mm',
+    'ios/ChatboxIOS/Controllers/DSConversationListController.m',
+    'ios/ChatboxIOS/Controllers/DSChatViewController.m',
     'ios/ChatboxIOS/Controllers/DSSettingsViewController.mm',
-    'ios/ChatboxIOS/Views/DSMessageCell.mm',
+    'ios/ChatboxIOS/Views/DSMessageCell.m',
+    'ios/ChatboxIOS/Supporting/DSTheme.m',
+    'ios/ChatboxIOS/Supporting/DSStrings.m',
 ]
 CPP_SOURCES = [
     'core/src/store.cpp',
@@ -41,6 +43,8 @@ HEADERS = [
     'ios/ChatboxIOS/Controllers/DSChatViewController.h',
     'ios/ChatboxIOS/Controllers/DSSettingsViewController.h',
     'ios/ChatboxIOS/Views/DSMessageCell.h',
+    'ios/ChatboxIOS/Supporting/DSTheme.h',
+    'ios/ChatboxIOS/Supporting/DSStrings.h',
 ]
 
 PROJECT_ID = oid('PROJECT')

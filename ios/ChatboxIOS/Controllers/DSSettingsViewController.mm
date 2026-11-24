@@ -1,5 +1,6 @@
 #import "DSSettingsViewController.h"
 #import "DSBoxService.h"
+#import "DSStrings.h"
 
 @interface DSSettingsViewController ()
 @property (nonatomic, strong) NSDictionary *settings;
@@ -7,6 +8,19 @@
 @end
 
 @implementation DSSettingsViewController
+
+/// 模型 id → 官方叫法（快速模式 / 专家模式 / 识图模式）。
+/// 官方这三档是其服务端概念，本 App 直连 API，故映射到对应的 API 模型名；
+/// 未命中的模型原样显示，不做猜测。
+- (NSString *)displayNameForModel:(NSString *)model {
+  if (model.length == 0) return DSStrModelDefault;
+  if ([model isEqualToString:@"deepseek-chat"]) return [NSString stringWithFormat:@"%@（%@）", DSStrModelDefault, model];
+  if ([model isEqualToString:@"deepseek-reasoner"]) return [NSString stringWithFormat:@"%@（%@）", DSStrModelExpert, model];
+  if ([model containsString:@"vl"] || [model containsString:@"vision"]) {
+    return [NSString stringWithFormat:@"%@（%@）", DSStrModelVision, model];
+  }
+  return model;
+}
 
 - (void)viewDidLoad {
   [super viewDidLoad];
@@ -63,7 +77,7 @@
     switch (indexPath.row) {
       case 0:
         cell.textLabel.text = @"模型";
-        cell.detailTextLabel.text = s[@"model"];
+        cell.detailTextLabel.text = [self displayNameForModel:s[@"model"]];
         cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
         break;
       case 1: {
