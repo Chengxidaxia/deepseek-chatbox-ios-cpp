@@ -119,6 +119,17 @@ static const CGFloat kMoreWidth = 36.0;
   self.contentView.alpha = highlighted ? 0.6 : 1.0;
 }
 
+/// 深浅色切换后重取颜色。动态色只在赋值那一刻解析，已经画好的图层不会自己变。
+- (void)traitCollectionDidChange:(UITraitCollection *)previous {
+  [super traitCollectionDidChange:previous];
+  if (!previous) return;
+  if (previous.userInterfaceStyle == self.traitCollection.userInterfaceStyle) return;
+  _titleLabel.textColor = [DSTheme labelPrimary];
+  _previewLabel.textColor = [DSTheme labelTertiary];
+  _selectedBG.backgroundColor = [DSTheme bgHover];
+  // 「…」的图标色在 DSButton 的 config 里，它自己有 traitCollectionDidChange 会重取。
+}
+
 @end
 
 #pragma mark - DSSessionSectionHeaderView
@@ -154,6 +165,15 @@ static const CGFloat kMoreWidth = 36.0;
   CGFloat h = CGRectGetHeight(self.bounds);
   // 文字基线靠下，跟下面第一行拉开距离；吸顶时留一点上边距不至于贴着顶。
   _label.frame = CGRectMake(kPadLeading, 0, MAX(0, CGRectGetWidth(self.bounds) - kPadLeading * 2), h);
+}
+
+- (void)traitCollectionDidChange:(UITraitCollection *)previous {
+  [super traitCollectionDidChange:previous];
+  if (!previous) return;
+  if (previous.userInterfaceStyle == self.traitCollection.userInterfaceStyle) return;
+  // 吸顶头是压在内容上的，底色必须跟着外观走，否则深色下会是一块白条。
+  self.backgroundColor = [DSTheme bgBase];
+  _label.textColor = [DSTheme labelSecondary];
 }
 
 @end

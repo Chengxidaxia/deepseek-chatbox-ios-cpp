@@ -69,7 +69,7 @@ static DSGroupedRowPosition DSPositionForRow(NSInteger row, NSInteger count) {
 
 - (void)reload {
   self.settings = [[DSBoxService shared] settings];
-  self.sectionTitles = @[@"API Key", @"模型与对话", @"本地工具", @"语音", @"数据"];
+  self.sectionTitles = @[@"API Key", @"模型与对话", @"本地工具", @"语音", @"数据", @"外观"];
   // 官方 SectionFooter 是给每组一句话说明用途，不是重复标题。
   self.sectionFooters = @[
     @"Key 用 PIN 加密后只存在本机，PIN 不落盘。清除后需要重新输入。",
@@ -77,6 +77,7 @@ static DSGroupedRowPosition DSPositionForRow(NSInteger row, NSInteger count) {
     @"关闭后模型不会再调用本机的搜索、网页抓取等工具。",
     @"语音识别需要麦克风权限；音色由服务端下发。",
     @"快照包含全部会话与设置，导出后请自行保管。",
+    @"选「跟随系统」时，会随 iOS 的深色模式自动切换。",
   ];
   [self.tableView reloadData];
 }
@@ -92,6 +93,7 @@ static DSGroupedRowPosition DSPositionForRow(NSInteger row, NSInteger count) {
     case 2: return 3;   // 本地工具 / 工具数 / 余额
     case 3: return 2;   // TTS 音色 / ASR 说明
     case 4: return 2;   // 导出 / 导入
+    case 5: return 1;   // 主题
     default: return 0;
   }
 }
@@ -203,9 +205,14 @@ static DSGroupedRowPosition DSPositionForRow(NSInteger row, NSInteger count) {
       cell.titleLabel.text = @"语音识别 (ASR)";
       cell.valueLabel.text = @"长按输入框使用";
     }
-  } else {
+  } else if (indexPath.section == 4) {
     cell.titleLabel.text = indexPath.row == 0 ? @"导出数据快照" : @"导入数据快照";
     cell.valueLabel.text = nil;
+    cell.showsChevron = YES;
+  } else {
+    // 官方 ProfileViewController 里的 ThemePicker
+    cell.titleLabel.text = @"主题";
+    cell.valueLabel.text = [DSTheme displayNameForThemeMode:s[@"theme"]];
     cell.showsChevron = YES;
   }
   return cell;
@@ -231,6 +238,35 @@ static DSGroupedRowPosition DSPositionForRow(NSInteger row, NSInteger count) {
   else if (indexPath.section == 2 && indexPath.row == 2) [self showBalance];
   else if (indexPath.section == 4 && indexPath.row == 0) [self exportData];
   else if (indexPath.section == 4 && indexPath.row == 1) [self importData];
+  else if (indexPath.section == 5 && indexPath.row == 0) [self pickTheme];
+}
+
+#pragma mark - 主题
+
+/// 官方 `ProfileViewController.ThemePicker` 的三档。
+/// 选完立刻生效（不要求重开 App），同时写回设置。
+- (void)pickTheme {
+  NSString *cur = self.settings[@"theme"] ?: @"system";
+  UIAlertController *a = [UIAlertController alertControllerWithTitle:@"主题"
+                                                             message:nil
+                                                      preferredStyle:UIAlertControllerStyleActionSheet];
+  __weak __typeof(self) ws = self;
+  for (NSString *mode in @[@"system", @"light", @"dark"]) {
+    BOOL on = [mode isEqualToString:cur];
+    NSString *name = [DSTheme displayNameForThemeMode:mode];
+    // actionSheet 没有「选中」态，用前缀勾表示当前值 —— 不加的话用户看不出现在选的是哪个。
+    NSString *title = on ? [NSString stringWithFormat:@"✓ %@", name] : name;
+    [a addAction:[UIAlertAction actionWithTitle:title
+                                          style:UIAlertActionStyleDefault
+                                        handler:^(UIAlertAction *x) {
+      [[DSBoxService shared] saveSettingsPatch:@{@"theme": mode}];
+      [DSTheme applyThemeMode:mode];
+      [ws reload];
+    }]];
+  }
+  [a addAction:[UIAlertAction actionWithTitle:DSStrCancel style:UIAlertActionStyleCancel handler:nil]];
+  a.popoverPresentationController.sourceView = self.tableView;
+  [self presentViewController:a animated:YES completion:nil];
 }
 
 - (void)setupKey {

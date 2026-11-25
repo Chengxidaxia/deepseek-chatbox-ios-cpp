@@ -151,6 +151,11 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
   self.window.rootViewController = root;
   [self.window makeKeyAndVisible];
 
+  // 必须在 window 存在之后再套主题：overrideUserInterfaceStyle 是设在 window 上的。
+  // 放到 makeKeyAndVisible 之前也能work（window 对象已创建），但那样首帧会先按系统
+  // 外观渲染一次再翻转，深色用户会看到一下白闪。
+  [DSTheme applyThemeMode:[[DSBoxService shared] settings][@"theme"]];
+
   [self showLastCrashIfAny];
   return YES;
 }

@@ -193,7 +193,7 @@ demangle），把每个函数和类对上。这是一项独立的、更大的工
 
 ## 3. 我们 vs 官方：差异表
 
-状态截至 **build 127**。
+状态截至 **build 131**。
 
 | 项 | 官方 | 我们 | 状态 |
 |---|---|---|---|
@@ -211,7 +211,7 @@ demangle），把每个函数和类对上。这是一项独立的、更大的工
 | 抽屉点空白关闭 | `MainDecorationView` 承接关闭手势 | `contentTap`，仅在抽屉打开期间启用 | ✅ build 125 |
 | 会话搜索 | `SessionListSearchBarView.SearchFieldView` | 自绘 UITextField | 部分 |
 | 输入区三层 | `TextInputView`(自带 Layout) → `ActionAreaView` → `ToggleButtonGroup` | 两层：输入框 + 工具条（含 group） | 部分 |
-| 设置页 | `ProfileViewController` + `InsetsGroupedCell` / `InsetsGroupedLayer` / `SectionHeader` / `SectionFooter` | `DSInsetsGroupedCell` + `DSSectionHeaderView` / `DSSectionFooterView` | ✅ build 126 |
+| 设置页 | `ProfileViewController` + `InsetsGroupedCell` / `InsetsGroupedLayer` / `SectionHeader` / `SectionFooter` + `ThemePicker` | `DSInsetsGroupedCell` + `DSSectionHeaderView` / `DSSectionFooterView` + 主题三档 | ✅ build 131 |
 | 消息操作栏 | `BaseMessageOperationBar` + `Coordinator` | 已有图标操作栏 | 部分 |
 | 布局方式 | **FlexLayout（flexbox）** | NSLayoutConstraint 手写 | 不打算改 |
 
@@ -261,6 +261,18 @@ LZVN 压缩，本机没有可用解码器（`lzfse` 的 Python 绑定只支持 L
 现在是 `DSInsetsGroupedCell`（自绘卡片，按 `DSGroupedRowPosition` 决定哪几个角圆）
 + `DSSectionHeaderView` / `DSSectionFooterView`（13pt，对齐到卡片内缩后的竖线）。
 系统的分隔线和分组头尾全部关掉，避免两套叠在一起。
+
+**`ThemePicker` 补上了**（build 131）：官方 `ProfileViewController` 有这一项，
+我们之前没有 —— 设置里根本没有「外观」这组。现在多一组「外观 → 主题」，
+三档：跟随系统 / 浅色 / 深色。
+
+实现落在 `window.overrideUserInterfaceStyle` 上，**没有改颜色常量** ——
+DSTheme 的颜色本来就是 `colorWithDynamicProvider`，UIKit 会自动重解析
+`UIView.backgroundColor` 和 `UILabel.textColor`，所以切主题不用重建视图树。
+「跟随系统」这一档也因此仍然可用；要是改成「按主题返回固定色值」，这档就废了。
+
+`AudioInputLanguagePicker`（语音输入语言）**没做**：我们的 ASR 目前只走中文，
+摆一个能点但改不了任何行为的选项，等于骗人。等 ASR 真支持多语种再加。
 
 ### 关于 FlexLayout
 

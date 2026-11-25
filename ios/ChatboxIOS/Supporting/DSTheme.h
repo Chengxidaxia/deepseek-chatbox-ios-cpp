@@ -68,6 +68,18 @@ NS_ASSUME_NONNULL_BEGIN
 + (CGFloat)thinkBarGap;           // 12
 + (CGFloat)messageListPadding;    // 20（移动端）
 
+#pragma mark - 主题模式
+
+/// 官方设置页的 `ThemePicker` 就是这三档。
+/// 实现落在 window 的 `overrideUserInterfaceStyle` 上，**不去改颜色值** ——
+/// DSTheme 的颜色本来就是 `colorWithDynamicProvider`，外观一变会自动重算；
+/// 各视图的 `traitCollectionDidChange:` 也会重取一遍。
+/// 反过来改颜色常量是行不通的：那会把「跟随系统」这条路堵死。
++ (void)applyThemeMode:(nullable NSString *)mode;
+
+/// 三档的展示名：跟随系统 / 浅色 / 深色
++ (NSString *)displayNameForThemeMode:(nullable NSString *)mode;
+
 @end
 
 NS_ASSUME_NONNULL_END

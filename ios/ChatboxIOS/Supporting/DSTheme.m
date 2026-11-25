@@ -112,4 +112,28 @@
 + (CGFloat)thinkBarGap { return 12.0; }
 + (CGFloat)messageListPadding { return 20.0; }
 
+#pragma mark - 主题模式
+
++ (void)applyThemeMode:(NSString *)mode {
+  UIUserInterfaceStyle style = UIUserInterfaceStyleUnspecified;
+  if ([mode isEqualToString:@"light"]) style = UIUserInterfaceStyleLight;
+  else if ([mode isEqualToString:@"dark"]) style = UIUserInterfaceStyleDark;
+  // 其它值（含 nil）一律当「跟随系统」。
+
+  // 必须落到 window 上：颜色是 colorWithDynamicProvider 生成的，
+  // 只有 trait 变了它们才会重算。改颜色常量本身行不通，还会把「跟随系统」堵死。
+  for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+    if (![scene isKindOfClass:UIWindowScene.class]) continue;
+    for (UIWindow *w in ((UIWindowScene *)scene).windows) {
+      w.overrideUserInterfaceStyle = style;
+    }
+  }
+}
+
++ (NSString *)displayNameForThemeMode:(NSString *)mode {
+  if ([mode isEqualToString:@"light"]) return @"浅色";
+  if ([mode isEqualToString:@"dark"]) return @"深色";
+  return @"跟随系统";
+}
+
 @end

@@ -143,6 +143,24 @@ static const CGFloat kInset = 16.0;
   _cardView.backgroundColor = highlighted ? [DSTheme bgActive] : [DSTheme bgHover];
 }
 
+/// 深浅色切换后要重取一遍颜色。
+/// DSTheme 给的是 colorWithDynamicProvider，但只在**赋值那一刻**解析；
+/// 已经画好的图层不会自己跟着变，所以必须在这里重新赋一次。
+- (void)applyThemeColors {
+  _cardView.backgroundColor = self.highlighted ? [DSTheme bgActive] : [DSTheme bgHover];
+  _titleTextLabel.textColor = self.destructive ? [DSTheme danger] : [DSTheme labelPrimary];
+  _valueTextLabel.textColor = [DSTheme labelTertiary];
+  _chevronView.tintColor = [DSTheme labelCaption];
+  _separatorView.backgroundColor = [DSTheme borderL2];
+}
+
+- (void)traitCollectionDidChange:(UITraitCollection *)previous {
+  [super traitCollectionDidChange:previous];
+  if (!previous) return;
+  if (previous.userInterfaceStyle == self.traitCollection.userInterfaceStyle) return;
+  [self applyThemeColors];
+}
+
 #pragma mark - 布局
 
 - (void)layoutSubviews {
@@ -240,6 +258,13 @@ static const CGFloat kInset = 16.0;
   _label.text = title;
 }
 
+- (void)traitCollectionDidChange:(UITraitCollection *)previous {
+  [super traitCollectionDidChange:previous];
+  if (!previous) return;
+  if (previous.userInterfaceStyle == self.traitCollection.userInterfaceStyle) return;
+  _label.textColor = [DSTheme labelSecondary];
+}
+
 @end
 
 #pragma mark - DSSectionFooterView
@@ -276,6 +301,13 @@ static const CGFloat kInset = 16.0;
 - (void)setDetail:(NSString *)detail {
   _detail = [detail copy];
   _label.text = detail;
+}
+
+- (void)traitCollectionDidChange:(UITraitCollection *)previous {
+  [super traitCollectionDidChange:previous];
+  if (!previous) return;
+  if (previous.userInterfaceStyle == self.traitCollection.userInterfaceStyle) return;
+  _label.textColor = [DSTheme labelCaption];
 }
 
 @end
