@@ -5,6 +5,7 @@
 
 #import "DSTopBarView.h"
 #import "DSIcon.h"
+#import "DSIconButton.h"
 #import "DSTheme.h"
 
 @interface DSTopBarView ()
@@ -26,15 +27,15 @@
   self.backgroundColor = [DSTheme bgBase];
 
   // 左：☰
-  _menuButton = [UIButton buttonWithType:UIButtonTypeSystem];
-  _menuButton.translatesAutoresizingMaskIntoConstraints = NO;
-  [_menuButton setImage:[DSIcon image:DSIconMenu size:DSIconPointSizeNav] forState:UIControlStateNormal];
-  _menuButton.tintColor = [DSTheme labelPrimary];
+  // 三个按钮都换成 DSIconButton：系统按钮按下去只压 tint，图标不动，
+  // 顶栏底色和图标颜色本来就接近，等于没有反馈 —— 用户会以为没点到。
+  _menuButton = [DSIconButton buttonWithIcon:[DSIcon image:DSIconMenu size:DSIconPointSizeNav]
+                                       tint:[DSTheme labelPrimary]];
   _menuButton.accessibilityLabel = @"会话列表";
   [_menuButton addTarget:self action:@selector(menuTapped) forControlEvents:UIControlEventTouchUpInside];
 
   // 中：模型名 + ⌄
-  _modelButton = [UIButton buttonWithType:UIButtonTypeSystem];
+  _modelButton = [[DSIconButton alloc] initWithFrame:CGRectZero];
   _modelButton.translatesAutoresizingMaskIntoConstraints = NO;
   _modelButton.titleLabel.font = [UIFont systemFontOfSize:16 weight:UIFontWeightSemibold];
   [_modelButton setTitleColor:[DSTheme labelPrimary] forState:UIControlStateNormal];
@@ -51,10 +52,9 @@
   [_modelButton addTarget:self action:@selector(modelTapped) forControlEvents:UIControlEventTouchUpInside];
 
   // 右：＋
-  _composeButton = [UIButton buttonWithType:UIButtonTypeSystem];
-  _composeButton.translatesAutoresizingMaskIntoConstraints = NO;
-  [_composeButton setImage:[DSIcon image:DSIconNewChat size:22] forState:UIControlStateNormal];
-  _composeButton.tintColor = [DSTheme labelPrimary];
+  // 尺寸用官方 24 的画布（ic_new_chat_outline_24），之前给的是 22，比左侧 ☰ 小一圈。
+  _composeButton = [DSIconButton buttonWithIcon:[DSIcon image:DSIconNewChat size:DSIconPointSizeNav]
+                                          tint:[DSTheme labelPrimary]];
   _composeButton.accessibilityLabel = @"开启新对话";
   [_composeButton addTarget:self action:@selector(newChatTapped) forControlEvents:UIControlEventTouchUpInside];
 

@@ -1082,6 +1082,10 @@
 
 - (NSString *)conversationId { return self.convId; }
 
+- (void)focusInput {
+  [self.input becomeFirstResponder];
+}
+
 #pragma mark - UITextViewDelegate
 
 - (void)textViewDidChange:(UITextView *)textView {

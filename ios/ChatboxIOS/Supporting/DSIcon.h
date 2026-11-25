@@ -29,7 +29,11 @@ typedef NS_ENUM(NSInteger, DSIconName) {
   DSIconChevronRight,    // ic_chevron_right_outline_20
   DSIconArrowRight,      // ic_arrow_right_outline_16
   DSIconClose,           // ic_close_outline_24
-  DSIconMore,            // ic_ellipsis_outline_20
+  // 官方 Assets.car 里那个 ic_ellipsis_outline_20 其实是**竖**三点（kebab）。
+  // 「更多操作」这个语义在 iOS 上应该是横三点（meatball），所以这里指向
+  // 由它旋转 90° 得到的 ic_ellipsis_horizontal_outline_20 —— 圆点半径与间距不变。
+  DSIconMore,            // ic_ellipsis_horizontal_outline_20
+  DSIconMoreVertical,    // ic_ellipsis_outline_20（官方原素材，竖版，留作它用）
 
   // —— 输入条 ——
   DSIconThink,           // ic_think_outline_16     深度思考

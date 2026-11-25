@@ -192,6 +192,19 @@ static const CGFloat kDSContentCorner = 12.0;
 }
 
 - (void)startNewChat {
+  // 已经站在一条空会话上就别再建一条。
+  // 连点几次「新对话」会真的在列表里堆出一串空会话（每条都叫「新对话」），
+  // 而且页面上什么都看不出变化 —— 用户会以为按钮坏了，继续点，越堆越多。
+  // 这种情况下把焦点给输入框，给一个看得见的响应。
+  NSString *activeId = self.chat.conversationId;
+  if (activeId.length) {
+    for (NSDictionary *c in [[DSBoxService shared] allConversations]) {
+      if ([c[@"id"] isEqualToString:activeId] && [c[@"messageCount"] integerValue] == 0) {
+        [self.chat focusInput];
+        return;
+      }
+    }
+  }
   NSDictionary *conv = [[DSBoxService shared] createConversation];
   NSString *cid = conv[@"id"];
   if ([cid isKindOfClass:NSString.class] && cid.length) [self showConversation:cid];

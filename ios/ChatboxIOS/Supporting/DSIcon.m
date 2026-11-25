@@ -22,7 +22,8 @@ static NSString *DSIconAssetKey(DSIconName name) {
     case DSIconChevronRight: return @"ic_chevron_right_outline_20";
     case DSIconArrowRight: return @"ic_arrow_right_outline_16";
     case DSIconClose: return @"ic_close_outline_24";
-    case DSIconMore: return @"ic_ellipsis_outline_20";
+    case DSIconMore: return @"ic_ellipsis_horizontal_outline_20";
+    case DSIconMoreVertical: return @"ic_ellipsis_outline_20";
 
     case DSIconThink: return @"ic_think_outline_16";
     case DSIconSearch: return @"ic_search_outline_16";

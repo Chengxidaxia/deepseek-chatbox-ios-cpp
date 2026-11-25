@@ -22,6 +22,7 @@
 		49591A5444AB21D0933C0096 /* DSVariableBlurView.m in Sources */ = {isa = PBXBuildFile; fileRef = CBA959FABFA297DA86907188 /* DSVariableBlurView.m */; };
 		1B143BB98F067A0966815D2E /* DSInsetsGroupedCell.m in Sources */ = {isa = PBXBuildFile; fileRef = 5549FE7FCE2162C07BC20E47 /* DSInsetsGroupedCell.m */; };
 		CC66D5CD7C42B010C08153B5 /* DSSessionCell.m in Sources */ = {isa = PBXBuildFile; fileRef = 5CFAEC38778E90E20DE0776E /* DSSessionCell.m */; };
+		93EA55A15C992E605FD78EC6 /* DSIconButton.m in Sources */ = {isa = PBXBuildFile; fileRef = 47145B1B057978A876EEA931 /* DSIconButton.m */; };
 		BF633C6FA585C4D569ABEB43 /* DSMessageCell.m in Sources */ = {isa = PBXBuildFile; fileRef = 34F75A9D41B7AF7179FB7E0F /* DSMessageCell.m */; };
 		6EBFF8EB8899A595408006E0 /* DSTurn.m in Sources */ = {isa = PBXBuildFile; fileRef = B6BE31C897A36FA3E015B0CA /* DSTurn.m */; };
 		1EDCFC9CB9AC30A85F950E2F /* DSFragmentView.m in Sources */ = {isa = PBXBuildFile; fileRef = E901E2C6A93E8497472DFEB1 /* DSFragmentView.m */; };
@@ -62,6 +63,7 @@
 		CBA959FABFA297DA86907188 /* DSVariableBlurView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Views/DSVariableBlurView.m; sourceTree = SOURCE_ROOT; };
 		5549FE7FCE2162C07BC20E47 /* DSInsetsGroupedCell.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Views/DSInsetsGroupedCell.m; sourceTree = SOURCE_ROOT; };
 		5CFAEC38778E90E20DE0776E /* DSSessionCell.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Views/DSSessionCell.m; sourceTree = SOURCE_ROOT; };
+		47145B1B057978A876EEA931 /* DSIconButton.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Views/DSIconButton.m; sourceTree = SOURCE_ROOT; };
 		34F75A9D41B7AF7179FB7E0F /* DSMessageCell.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Views/DSMessageCell.m; sourceTree = SOURCE_ROOT; };
 		B6BE31C897A36FA3E015B0CA /* DSTurn.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Views/DSTurn.m; sourceTree = SOURCE_ROOT; };
 		E901E2C6A93E8497472DFEB1 /* DSFragmentView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatboxIOS/Views/DSFragmentView.m; sourceTree = SOURCE_ROOT; };
@@ -98,6 +100,7 @@
 		9BE0E752774041E83094D226 /* DSVariableBlurView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Views/DSVariableBlurView.h; sourceTree = SOURCE_ROOT; };
 		2946E6B59FFC492371AFC43E /* DSInsetsGroupedCell.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Views/DSInsetsGroupedCell.h; sourceTree = SOURCE_ROOT; };
 		54B3A983C9171F7729568F68 /* DSSessionCell.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Views/DSSessionCell.h; sourceTree = SOURCE_ROOT; };
+		AD29F900189CDDB2A9AB8D76 /* DSIconButton.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Views/DSIconButton.h; sourceTree = SOURCE_ROOT; };
 		2E6DCEE2F6C613BF26567F1F /* DSMessageCell.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Views/DSMessageCell.h; sourceTree = SOURCE_ROOT; };
 		0EF6A1D195FFC2AE12DB6E80 /* DSTurn.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Views/DSTurn.h; sourceTree = SOURCE_ROOT; };
 		8C6306409520F8D600CA8F8F /* DSFragmentView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatboxIOS/Views/DSFragmentView.h; sourceTree = SOURCE_ROOT; };
@@ -224,6 +227,7 @@
 				CBA959FABFA297DA86907188 /* DSVariableBlurView.m */,
 				5549FE7FCE2162C07BC20E47 /* DSInsetsGroupedCell.m */,
 				5CFAEC38778E90E20DE0776E /* DSSessionCell.m */,
+				47145B1B057978A876EEA931 /* DSIconButton.m */,
 				34F75A9D41B7AF7179FB7E0F /* DSMessageCell.m */,
 				B6BE31C897A36FA3E015B0CA /* DSTurn.m */,
 				E901E2C6A93E8497472DFEB1 /* DSFragmentView.m */,
@@ -238,6 +242,7 @@
 				9BE0E752774041E83094D226 /* DSVariableBlurView.h */,
 				2946E6B59FFC492371AFC43E /* DSInsetsGroupedCell.h */,
 				54B3A983C9171F7729568F68 /* DSSessionCell.h */,
+				AD29F900189CDDB2A9AB8D76 /* DSIconButton.h */,
 				2E6DCEE2F6C613BF26567F1F /* DSMessageCell.h */,
 				0EF6A1D195FFC2AE12DB6E80 /* DSTurn.h */,
 				8C6306409520F8D600CA8F8F /* DSFragmentView.h */,
@@ -390,6 +395,7 @@
 				49591A5444AB21D0933C0096 /* DSVariableBlurView.m in Sources */,
 				1B143BB98F067A0966815D2E /* DSInsetsGroupedCell.m in Sources */,
 				CC66D5CD7C42B010C08153B5 /* DSSessionCell.m in Sources */,
+				93EA55A15C992E605FD78EC6 /* DSIconButton.m in Sources */,
 				BF633C6FA585C4D569ABEB43 /* DSMessageCell.m in Sources */,
 				6EBFF8EB8899A595408006E0 /* DSTurn.m in Sources */,
 				1EDCFC9CB9AC30A85F950E2F /* DSFragmentView.m in Sources */,

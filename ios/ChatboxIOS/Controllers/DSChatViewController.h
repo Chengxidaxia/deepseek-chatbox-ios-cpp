@@ -12,6 +12,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// 当前会话 id
 @property (nonatomic, readonly) NSString *conversationId;
+
+/// 把焦点给输入框。用于「点了新对话但其实已经在一条空会话上」时给个看得见的响应。
+- (void)focusInput;
 @end
 
 NS_ASSUME_NONNULL_END
