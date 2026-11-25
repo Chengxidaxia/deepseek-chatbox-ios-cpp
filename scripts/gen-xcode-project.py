@@ -9,6 +9,25 @@ import pathlib
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 IOS = ROOT / 'ios'
 
+# 营销版本号（CFBundleShortVersionString）的**唯一来源**。
+# 这个值以前同时写在 pbxproj 和本脚本里，结果漂过一次：pbxproj 被手动改成
+# 1.12.5，脚本还停在 1.12.4，重跑生成器就把版本号悄悄改了回去（build 128 中招）。
+# 现在只认 ios/VERSION 这一个文件：改版本 = 改它 + 重跑生成器。
+VERSION_FILE = IOS / 'VERSION'
+
+
+def marketing_version() -> str:
+    try:
+        v = VERSION_FILE.read_text(encoding='utf-8').strip()
+    except FileNotFoundError:
+        raise SystemExit(f'缺少 {VERSION_FILE}：营销版本号必须有唯一来源，不能靠猜')
+    if not v:
+        raise SystemExit(f'{VERSION_FILE} 是空的')
+    return v
+
+
+MARKETING_VERSION = marketing_version()
+
 
 def oid(key: str) -> str:
     """从 key 生成稳定的 24 位大写十六进制对象 ID。"""
@@ -465,7 +484,7 @@ def generate():
 \t\t\t\t\t"$(inherited)",
 \t\t\t\t\t"@executable_path/Frameworks",
 \t\t\t\t);
-\t\t\t\tMARKETING_VERSION = 1.12.4;
+\t\t\t\tMARKETING_VERSION = {MARKETING_VERSION};
 \t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.dsbox.chatbox;
 \t\t\t\tPRODUCT_NAME = "$(TARGET_NAME)";
 \t\t\t\tSWIFT_EMIT_LOC_STRINGS = YES;
@@ -520,7 +539,7 @@ def generate():
 \t\t\t\t\t"$(inherited)",
 \t\t\t\t\t"@executable_path/Frameworks",
 \t\t\t\t);
-\t\t\t\tMARKETING_VERSION = 1.12.4;
+\t\t\t\tMARKETING_VERSION = {MARKETING_VERSION};
 \t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.dsbox.chatbox;
 \t\t\t\tPRODUCT_NAME = "$(TARGET_NAME)";
 \t\t\t\tSWIFT_EMIT_LOC_STRINGS = YES;
