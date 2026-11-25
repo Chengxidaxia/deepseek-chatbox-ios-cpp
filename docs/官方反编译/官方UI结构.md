@@ -193,7 +193,7 @@ demangle），把每个函数和类对上。这是一项独立的、更大的工
 
 ## 3. 我们 vs 官方：差异表
 
-状态截至 **build 125**。
+状态截至 **build 126**。
 
 | 项 | 官方 | 我们 | 状态 |
 |---|---|---|---|
@@ -211,11 +211,11 @@ demangle），把每个函数和类对上。这是一项独立的、更大的工
 | 抽屉点空白关闭 | `MainDecorationView` 承接关闭手势 | `contentTap`，仅在抽屉打开期间启用 | ✅ build 125 |
 | 会话搜索 | `SessionListSearchBarView.SearchFieldView` | 自绘 UITextField | 部分 |
 | 输入区三层 | `TextInputView`(自带 Layout) → `ActionAreaView` → `ToggleButtonGroup` | 两层：输入框 + 工具条（含 group） | 部分 |
-| 设置页 | `ProfileViewController` + `InsetsGroupedCell` / `SectionHeader` | 手写 tableView | ❌ 未做 |
+| 设置页 | `ProfileViewController` + `InsetsGroupedCell` / `InsetsGroupedLayer` / `SectionHeader` / `SectionFooter` | `DSInsetsGroupedCell` + `DSSectionHeaderView` / `DSSectionFooterView` | ✅ build 126 |
 | 消息操作栏 | `BaseMessageOperationBar` + `Coordinator` | 已有图标操作栏 | 部分 |
 | 布局方式 | **FlexLayout（flexbox）** | NSLayoutConstraint 手写 | 不打算改 |
 
-### 还剩的两块（都不小）
+### 还剩的一块
 
 **会话列表改 CollectionView**：官方 `SessionListCollectionView` 带
 `VirtualRootCell`（分组标题容器）、`SkeletonRowsView`（骨架屏）、
@@ -223,9 +223,18 @@ demangle），把每个函数和类对上。这是一项独立的、更大的工
 这是把现在的 UITableView 换成 UICollectionView + Compositional Layout，
 属于推倒重写，不是补组件。
 
-**设置页对齐 `ProfileViewController`**：官方是 `InsetsGroupedCell` +
-`InsetsGroupedLayer`（内缩分组卡片）+ `SectionHeader` / `SectionFooter` +
-`ForwardChevron`。我们目前是普通 grouped tableView，观感差距在卡片圆角和内缩量。
+### 已对齐：设置页（build 126）
+
+官方是 `InsetsGroupedCell` + `InsetsGroupedLayer`（内缩分组卡片）+
+`SectionHeader` / `SectionFooter` + `ForwardChevron`。
+
+之前的做法是普通 grouped tableView —— 差距不在圆角数值，而在**结构**：
+系统 grouped 是「每行一张卡、行间留 8pt 缝」，官方是「整组一张卡、行间无缝、
+只有首尾行有圆角、分隔线从标题起始位置开始」。这两种看起来完全不是一回事。
+
+现在是 `DSInsetsGroupedCell`（自绘卡片，按 `DSGroupedRowPosition` 决定哪几个角圆）
++ `DSSectionHeaderView` / `DSSectionFooterView`（13pt，对齐到卡片内缩后的竖线）。
+系统的分隔线和分组头尾全部关掉，避免两套叠在一起。
 
 ### 关于 FlexLayout
 
