@@ -193,7 +193,7 @@ demangle），把每个函数和类对上。这是一项独立的、更大的工
 
 ## 3. 我们 vs 官方：差异表
 
-状态截至 **build 126**。
+状态截至 **build 127**。
 
 | 项 | 官方 | 我们 | 状态 |
 |---|---|---|---|
@@ -206,7 +206,7 @@ demangle），把每个函数和类对上。这是一项独立的、更大的工
 | 搜索/思考运行态 | `SearchOperationView` / `ReasoningOperationView` | `DSOperationView`（一个类两种 kind） | ✅ build 123 |
 | chips 容器 | `ToggleButtonGroup` / `ToggleButtonContainer` | `DSToggleButtonGroup` | ✅ build 123 |
 | 空态 | `MessageViewController.EmptyView` + `PromptSuggestionView.TemplateButton` | 独立 welcomeView + 建议问题胶囊 | ✅ build 123 |
-| 会话列表 | **UICollectionView** + 骨架屏 + 加载更多 + 虚拟根 cell | UITableView | ❌ 未做 |
+| 会话列表 | **UICollectionView** + 分组吸顶 + 虚拟根 cell + 骨架屏 + 加载更多 | `UICollectionView` + Compositional Layout + `DSSessionCell` | ✅ 结构已对齐（骨架屏/分页未接，见下） |
 | 会话行「…」菜单 | `SessionListCollectionView.Cell` 右侧常驻 `ic_ellipsis_outline_20` | `cell.accessoryView` 常驻 `…` + 四项菜单 | ✅ build 125 |
 | 抽屉点空白关闭 | `MainDecorationView` 承接关闭手势 | `contentTap`，仅在抽屉打开期间启用 | ✅ build 125 |
 | 会话搜索 | `SessionListSearchBarView.SearchFieldView` | 自绘 UITextField | 部分 |
@@ -215,13 +215,28 @@ demangle），把每个函数和类对上。这是一项独立的、更大的工
 | 消息操作栏 | `BaseMessageOperationBar` + `Coordinator` | 已有图标操作栏 | 部分 |
 | 布局方式 | **FlexLayout（flexbox）** | NSLayoutConstraint 手写 | 不打算改 |
 
-### 还剩的一块
+### 已对齐：会话列表（build 127）
 
-**会话列表改 CollectionView**：官方 `SessionListCollectionView` 带
-`VirtualRootCell`（分组标题容器）、`SkeletonRowsView`（骨架屏）、
-`LoadMoreSkeletonCell` / `LoadMoreFailedCell`（分页态）、`FooterHeightResolver`。
-这是把现在的 UITableView 换成 UICollectionView + Compositional Layout，
-属于推倒重写，不是补组件。
+官方 `SessionListCollectionView` 带 `VirtualRootCell`（分组标题容器）、
+`SkeletonRowsView`（骨架屏）、`LoadMoreSkeletonCell` / `LoadMoreFailedCell`（分页态）。
+
+已做的：UITableView → **UICollectionView + Compositional Layout**。
+分组头换成 `boundarySupplementaryItems` 并开了 `pinToVisibleBounds`（吸顶），
+单元格从 `UITableViewCellStyleSubtitle` 换成自绘的 `DSSessionCell`
+（标题 / 预览 / 「…」的位置和行高都是自己的数，不再由 UIKit 决定）。
+侧滑操作、长按菜单、「…」菜单三条入口都在，且共用同一套动作方法。
+
+**没接的两块，理由如下（不是漏做）：**
+
+- **骨架屏**：`SkeletonRowsView` 是为「等网络返回」设计的。我们的数据源是
+  本机 SQLite，`allConversations` 是一次同步调用、毫秒级返回 —— 骨架屏会
+  只闪一帧就消失，看起来像故障而不是加载。要显示骨架屏，得先人为加延迟，
+  那是拿真实体验换一个假动画，不值。
+- **加载更多**：同理。本地数据一次性全取回来，没有「下一页」。
+  真接上去就是一个永远转 0 毫秒的转圈。
+
+这两块在数据源变成服务端分页之后才有意义，届时 `DSSessionCell` 这套结构
+可以直接复用，加一个 footer 分区就行。
 
 ### 已对齐：设置页（build 126）
 

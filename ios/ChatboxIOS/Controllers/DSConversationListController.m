@@ -2,8 +2,14 @@
 //  DSConversationListController.m
 //  ChatboxIOS
 //
-//  对齐官方会话列表：按「置顶 / 今天 / 昨天 / 7 天内 / 30 天内 / 更早」分组，
-//  空态给标题 + 说明 + 「开启新对话」入口（对应 SessionListEmptyView）。
+//  对齐官方会话列表：`SessionListCollectionView` 的分组结构
+//  （置顶 / 今天 / 昨天 / 7 天内 / 30 天内 / 更早），空态给标题 + 说明 +
+//  「开启新对话」入口（对应 SessionListEmptyView）。
+//
+//  为什么从 UITableView 换成 UICollectionView：官方就是 collection view，
+//  而且分区头要**吸顶**。UITableView 的 plain 样式也能吸顶，但单元格只能吃
+//  系统那套 subtitle 布局；换成 collection view + compositional layout 之后，
+//  单元格完全自绘，分区头也能独立控制。
 //
 
 #import "DSConversationListController.h"
@@ -14,10 +20,14 @@
 #import "DSStrings.h"
 #import "DSIcon.h"
 #import "DSButton.h"
+#import "DSSessionCell.h"
 
-@interface DSConversationListController () <UITableViewDataSource, UITableViewDelegate,
+static NSString *const kCellID = @"session";
+static NSString *const kHeaderID = @"sessionHeader";
+
+@interface DSConversationListController () <UICollectionViewDataSource, UICollectionViewDelegate,
     UISearchResultsUpdating>
-@property (nonatomic, strong) UITableView *tableView;
+@property (nonatomic, strong) UICollectionView *collectionView;
 @property (nonatomic, strong) NSArray<NSDictionary *> *items;    // 全量
 @property (nonatomic, strong) NSArray<NSDictionary *> *filtered; // 过滤后
 @property (nonatomic, strong) NSArray<NSDictionary *> *sections; // {title, items}
@@ -46,7 +56,7 @@
     [self setupNavigationMode];
   }
 
-  [self buildTable];
+  [self buildCollectionView];
   [self buildEmptyView];
   [self reload];
 }
@@ -185,25 +195,63 @@
   ]];
 }
 
-- (void)buildTable {
-  self.tableView = [[UITableView alloc] initWithFrame:CGRectZero style:UITableViewStylePlain];
-  self.tableView.translatesAutoresizingMaskIntoConstraints = NO;
-  self.tableView.dataSource = self;
-  self.tableView.delegate = self;
-  self.tableView.rowHeight = self.drawerMode ? 52 : 64;
-  self.tableView.backgroundColor = [DSTheme bgBase];
-  self.tableView.separatorInset = UIEdgeInsetsMake(0, self.drawerMode ? 16 : [DSTheme messageListPadding], 0, 0);
-  self.tableView.keyboardDismissMode = UIScrollViewKeyboardDismissModeOnDrag;
-  [self.view addSubview:self.tableView];
+#pragma mark - 列表
+
+- (void)buildCollectionView {
+  UICollectionViewCompositionalLayout *layout =
+      [[UICollectionViewCompositionalLayout alloc] initWithSectionProvider:
+        ^NSCollectionLayoutSection *(NSInteger section, id<NSCollectionLayoutEnvironment> env) {
+    NSCollectionLayoutSize *itemSize =
+        [NSCollectionLayoutSize sizeWithWidthDimension:[NSCollectionLayoutDimension fractionalWidth:1.0]
+                                       heightDimension:[NSCollectionLayoutDimension absoluteDimension:DSSessionRowHeight]];
+    NSCollectionLayoutItem *item = [NSCollectionLayoutItem itemWithLayoutSize:itemSize];
+
+    NSCollectionLayoutSize *groupSize =
+        [NSCollectionLayoutSize sizeWithWidthDimension:[NSCollectionLayoutDimension fractionalWidth:1.0]
+                                       heightDimension:[NSCollectionLayoutDimension absoluteDimension:DSSessionRowHeight]];
+    NSCollectionLayoutGroup *group =
+        [NSCollectionLayoutGroup verticalGroupWithLayoutSize:groupSize subitem:item count:1];
+
+    NSCollectionLayoutSection *sec = [NSCollectionLayoutSection sectionWithGroup:group];
+    // 组与组之间留一口气，靠分组头的上边距撑，不在分区底部再加 —— 否则
+    // 最后一组下面会多出一段空白。
+    sec.contentInsets = NSDirectionalEdgeInsetsMake(0, 0, 0, 0);
+
+    NSCollectionLayoutSize *headerSize =
+        [NSCollectionLayoutSize sizeWithWidthDimension:[NSCollectionLayoutDimension fractionalWidth:1.0]
+                                       heightDimension:[NSCollectionLayoutDimension estimatedDimension:30]];
+    NSCollectionLayoutBoundarySupplementaryItem *header =
+        [NSCollectionLayoutBoundarySupplementaryItem
+            boundarySupplementaryItemWithLayoutSize:headerSize
+                                         elementKind:UICollectionElementKindSectionHeader
+                                           alignment:NSRectAlignmentTop];
+    // 官方分组头是吸顶的（VirtualRootCell 顶住不滚）。
+    header.pinToVisibleBounds = YES;
+    sec.boundarySupplementaryItems = @[header];
+    return sec;
+  }];
+
+  self.collectionView = [[UICollectionView alloc] initWithFrame:CGRectZero collectionViewLayout:layout];
+  self.collectionView.translatesAutoresizingMaskIntoConstraints = NO;
+  self.collectionView.dataSource = self;
+  self.collectionView.delegate = self;
+  self.collectionView.backgroundColor = [DSTheme bgBase];
+  self.collectionView.alwaysBounceVertical = YES;
+  self.collectionView.keyboardDismissMode = UIScrollViewKeyboardDismissModeOnDrag;
+  [self.collectionView registerClass:DSSessionCell.class forCellWithReuseIdentifier:kCellID];
+  [self.collectionView registerClass:DSSessionSectionHeaderView.class
+          forSupplementaryViewOfKind:UICollectionElementKindSectionHeader
+                 withReuseIdentifier:kHeaderID];
+  [self.view addSubview:self.collectionView];
 
   NSLayoutYAxisAnchor *top = self.drawerMode ? _drawerHeader.bottomAnchor
                                              : self.view.safeAreaLayoutGuide.topAnchor;
   NSLayoutYAxisAnchor *bottom = self.drawerMode ? _drawerFooter.topAnchor : self.view.bottomAnchor;
   [NSLayoutConstraint activateConstraints:@[
-    [self.tableView.topAnchor constraintEqualToAnchor:top],
-    [self.tableView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
-    [self.tableView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
-    [self.tableView.bottomAnchor constraintEqualToAnchor:bottom],
+    [self.collectionView.topAnchor constraintEqualToAnchor:top],
+    [self.collectionView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+    [self.collectionView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
+    [self.collectionView.bottomAnchor constraintEqualToAnchor:bottom],
   ]];
 }
 
@@ -304,7 +352,7 @@
   }
   [self rebuildSections];
   [self updateEmptyState];
-  [self.tableView reloadData];
+  [self.collectionView reloadData];
 }
 
 /// 按官方分组：置顶 / 今天 / 昨天 / 7 天内 / 30 天内 / 更早
@@ -354,7 +402,7 @@
   BOOL searching = [self currentQuery].length > 0;
   BOOL empty = self.filtered.count == 0;
   self.emptyView.hidden = !empty;
-  self.tableView.hidden = empty;
+  self.collectionView.hidden = empty;
   if (searching) {
     _emptyTitle.text = DSStrSearchNoResult;
     _emptyDesc.text = @"";
@@ -362,6 +410,15 @@
     _emptyTitle.text = DSStrSessionListEmptyTitle;
     _emptyDesc.text = DSStrSessionListEmptyDesc;
   }
+}
+
+/// 取第 indexPath 行对应的会话。越界返回 nil —— 删除后 collection view 还没刷新的
+/// 那一帧里，回调用旧 indexPath 是可能的，不防会直接崩。
+- (nullable NSDictionary *)conversationAtIndexPath:(NSIndexPath *)indexPath {
+  if (indexPath.section >= (NSInteger)self.sections.count) return nil;
+  NSArray *list = self.sections[(NSUInteger)indexPath.section][@"items"];
+  if (indexPath.item >= (NSInteger)list.count) return nil;
+  return list[(NSUInteger)indexPath.item];
 }
 
 #pragma mark - 操作
@@ -384,83 +441,118 @@
   [self applyFilter:searchController.searchBar.text ?: @""];
 }
 
-#pragma mark - 表格
+#pragma mark - UICollectionViewDataSource
 
-- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
+- (NSInteger)numberOfSectionsInCollectionView:(UICollectionView *)collectionView {
   return self.sections.count;
 }
 
-- (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
-  return self.sections[section][@"title"];
+- (NSInteger)collectionView:(UICollectionView *)collectionView
+     numberOfItemsInSection:(NSInteger)section {
+  return [(NSArray *)self.sections[(NSUInteger)section][@"items"] count];
 }
 
-- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-  return [(NSArray *)self.sections[section][@"items"] count];
-}
+- (UICollectionViewCell *)collectionView:(UICollectionView *)collectionView
+                  cellForItemAtIndexPath:(NSIndexPath *)indexPath {
+  DSSessionCell *cell = [collectionView dequeueReusableCellWithReuseIdentifier:kCellID
+                                                                 forIndexPath:indexPath];
+  NSDictionary *c = [self conversationAtIndexPath:indexPath];
+  NSString *title = [c[@"title"] length] ? c[@"title"] : DSStrNewChatTitle;
+  [cell configureTitle:title preview:c[@"preview"] pinned:[c[@"pinned"] boolValue]];
 
-- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
-  static NSString *const kCell = @"session";
-  UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:kCell];
-  if (!cell) {
-    cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:kCell];
-    cell.backgroundColor = [DSTheme bgBase];
-    cell.textLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightMedium];
-    cell.textLabel.textColor = [DSTheme labelPrimary];
-    cell.detailTextLabel.font = [UIFont systemFontOfSize:13];
-    cell.detailTextLabel.textColor = [DSTheme labelTertiary];
-  }
-  NSArray *list = self.sections[indexPath.section][@"items"];
-  NSDictionary *c = list[indexPath.row];
-  cell.textLabel.text = [c[@"title"] length] ? c[@"title"] : DSStrNewChatTitle;
-  cell.detailTextLabel.text = c[@"preview"];
-  cell.detailTextLabel.numberOfLines = 1;
-  cell.accessoryType = UITableViewCellAccessoryNone;
-
-  // 官方 SessionListCollectionView.Cell 右侧是常驻的「…」菜单（ic_ellipsis_outline_20）。
-  // 之前我们只做了侧滑操作 —— 没人会想到去侧滑，等于这个入口不存在。
-  // 只建一次，复用 cell 时不再重建；点哪个靠点击位置反查 indexPath，不依赖 tag。
-  if (!cell.accessoryView) {
-    DSButtonConfig *moreCfg = [DSButtonConfig style:DSButtonStylePlain icon:DSIconMore title:nil];
-    moreCfg.iconSize = DSIconPointSizeAction;      // 20
-    moreCfg.minSize = CGSizeMake(36, 44);
-    moreCfg.hPadding = 0;
-    moreCfg.vPadding = 0;
-    moreCfg.cornerRadius = 0;
-    moreCfg.tint = [DSTheme labelTertiary];
-    DSButton *more = [DSButton buttonWithConfig:moreCfg];
-    // accessoryView 不吃 Auto Layout：UITableView 只读它的 frame，不会替它解约束。
-    // 而 buttonWithConfig: 里为了普通场景把 TAMIC 关掉了 —— 这里必须打开并给死尺寸，
-    // 否则没有约束可解，最终 frame 是零：按钮建出来了，但看不见、也点不到。
-    more.translatesAutoresizingMaskIntoConstraints = YES;
-    more.frame = CGRectMake(0, 0, moreCfg.minSize.width, moreCfg.minSize.height);
-    more.accessibilityLabel = @"更多操作";
-    [more addTarget:self action:@selector(sessionMoreTapped:)
-   forControlEvents:UIControlEventTouchUpInside];
-    cell.accessoryView = more;
-  }
+  // 「…」的点击落到哪个会话，在 configure 时就把上下文绑好 ——
+  // 不再靠点击位置反查 indexPath：collection view 的 cell 会复用，
+  // 反查拿到的行和真正点的那一行不一定是一回事。
+  // cell 用 weak 捕获：block 存在 cell 自己身上，强捕获就是自引用环。
+  __weak __typeof(self) ws = self;
+  __weak DSSessionCell *weakCell = cell;
+  cell.onMore = ^{
+    __typeof(self) ss = ws;
+    if (!ss) return;
+    [ss presentMenuForConversation:c sourceView:weakCell ?: ss.view];
+  };
   return cell;
 }
 
-- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
-  [tableView deselectRowAtIndexPath:indexPath animated:YES];
-  NSArray *list = self.sections[indexPath.section][@"items"];
-  NSDictionary *c = list[indexPath.row];
+- (UICollectionReusableView *)collectionView:(UICollectionView *)collectionView
+           viewForSupplementaryElementOfKind:(NSString *)kind
+                                 atIndexPath:(NSIndexPath *)indexPath {
+  if (![kind isEqualToString:UICollectionElementKindSectionHeader]) return nil;
+  DSSessionSectionHeaderView *h =
+      [collectionView dequeueReusableSupplementaryViewOfKind:kind
+                                          withReuseIdentifier:kHeaderID
+                                                 forIndexPath:indexPath];
+  if (indexPath.section < (NSInteger)self.sections.count) {
+    h.title = self.sections[(NSUInteger)indexPath.section][@"title"];
+  }
+  return h;
+}
+
+#pragma mark - UICollectionViewDelegate
+
+- (void)collectionView:(UICollectionView *)collectionView
+    didSelectItemAtIndexPath:(NSIndexPath *)indexPath {
+  [collectionView deselectItemAtIndexPath:indexPath animated:YES];
+  NSDictionary *c = [self conversationAtIndexPath:indexPath];
+  if (!c) return;
   if (self.onSelectConversation) { self.onSelectConversation(c[@"id"]); return; }
   DSChatViewController *chat = [[DSChatViewController alloc] initWithConversationId:c[@"id"]];
   [self.navigationController pushViewController:chat animated:YES];
 }
 
-#pragma mark - 单条会话的「…」菜单
+- (UISwipeActionsConfiguration *)collectionView:(UICollectionView *)collectionView
+                                         layout:(UICollectionViewLayout *)layout
+    trailingSwipeActionsConfigurationForItemAtIndexPath:(NSIndexPath *)indexPath {
+  NSDictionary *c = [self conversationAtIndexPath:indexPath];
+  if (!c) return nil;
 
-/// 由点击位置反查行，比给按钮打 tag 可靠 —— cell 复用后 tag 会错位。
-- (void)sessionMoreTapped:(UIButton *)sender {
-  CGPoint p = [sender convertPoint:CGPointZero toView:self.tableView];
-  NSIndexPath *ip = [self.tableView indexPathForRowAtPoint:p];
-  if (!ip || ip.section >= (NSInteger)self.sections.count) return;
-  NSArray *list = self.sections[(NSUInteger)ip.section][@"items"];
-  if (ip.row >= (NSInteger)list.count) return;
-  [self presentMenuForConversation:list[(NSUInteger)ip.row] sourceView:sender];
+  __weak __typeof(self) ws = self;
+  UIContextualAction *del = [UIContextualAction contextualActionWithStyle:UIContextualActionStyleDestructive
+      title:DSStrDeleteSession handler:^(UIContextualAction *action, UIView *source, void (^completion)(BOOL)) {
+    [ws deleteConversation:c];
+    completion(YES);
+  }];
+
+  UIContextualAction *pin = [UIContextualAction contextualActionWithStyle:UIContextualActionStyleNormal
+      title:[c[@"pinned"] boolValue] ? DSStrUnpinSession : DSStrPinSession
+      handler:^(UIContextualAction *a, UIView *s, void (^done)(BOOL)) {
+    [ws togglePin:c];
+    done(YES);
+  }];
+  pin.backgroundColor = [DSTheme labelTertiary];
+  return [UISwipeActionsConfiguration configurationWithActions:@[del, pin]];
 }
+
+/// 长按出菜单。官方也有这套（`ContextMenuGestureDelegate`），不是只有「…」一条路。
+- (UIContextMenuConfiguration *)collectionView:(UICollectionView *)collectionView
+    contextMenuConfigurationForItemAtIndexPath:(NSIndexPath *)indexPath
+                                         point:(CGPoint)point {
+  NSDictionary *c = [self conversationAtIndexPath:indexPath];
+  if (!c) return nil;
+  __weak __typeof(self) ws = self;
+  return [UIContextMenuConfiguration configurationWithIdentifier:nil
+                                                 previewProvider:nil
+                                                  actionProvider:^UIMenu *(NSArray<UIMenuElement *> *suggested) {
+    BOOL pinned = [c[@"pinned"] boolValue];
+    UIAction *pin = [UIAction actionWithTitle:(pinned ? DSStrUnpinSession : DSStrPinSession)
+                                       image:[DSIcon image:pinned ? DSIconUnpin : DSIconPin
+                                                      size:DSIconPointSizeAction]
+                                  identifier:nil
+                                     handler:^(UIAction *a) { [ws togglePin:c]; }];
+    UIAction *rename = [UIAction actionWithTitle:DSStrRenameSession
+                                          image:[DSIcon image:DSIconEdit size:DSIconPointSizeAction]
+                                     identifier:nil
+                                        handler:^(UIAction *a) { [ws promptRename:c]; }];
+    UIAction *del = [UIAction actionWithTitle:DSStrDeleteSession
+                                       image:[DSIcon image:DSIconTrash size:DSIconPointSizeAction]
+                                  identifier:nil
+                                     handler:^(UIAction *a) { [ws confirmDelete:c]; }];
+    del.attributes = UIMenuElementAttributesDestructive;
+    return [UIMenu menuWithTitle:@"" children:@[pin, rename, del]];
+  }];
+}
+
+#pragma mark - 单条会话的「…」菜单
 
 - (void)presentMenuForConversation:(NSDictionary *)c sourceView:(UIView *)src {
   BOOL pinned = [c[@"pinned"] boolValue];
@@ -471,23 +563,15 @@
 
   [sheet addAction:[UIAlertAction actionWithTitle:(pinned ? DSStrUnpinSession : DSStrPinSession)
                                             style:UIAlertActionStyleDefault
-                                          handler:^(UIAlertAction *a) {
-    NSError *e = nil;
-    [[DSBoxService shared] updateConversation:c[@"id"] patch:@{@"pinned": @(!pinned)} error:&e];
-    [ws reload];
-  }]];
+                                          handler:^(UIAlertAction *a) { [ws togglePin:c]; }]];
 
   [sheet addAction:[UIAlertAction actionWithTitle:DSStrRenameSession
                                             style:UIAlertActionStyleDefault
-                                          handler:^(UIAlertAction *a) {
-    [ws promptRename:c];
-  }]];
+                                          handler:^(UIAlertAction *a) { [ws promptRename:c]; }]];
 
   [sheet addAction:[UIAlertAction actionWithTitle:DSStrDeleteSession
                                             style:UIAlertActionStyleDestructive
-                                          handler:^(UIAlertAction *a) {
-    [ws confirmDelete:c];
-  }]];
+                                          handler:^(UIAlertAction *a) { [ws confirmDelete:c]; }]];
 
   [sheet addAction:[UIAlertAction actionWithTitle:DSStrCancel
                                             style:UIAlertActionStyleCancel
@@ -497,6 +581,23 @@
   sheet.popoverPresentationController.sourceView = src;
   sheet.popoverPresentationController.sourceRect = src.bounds;
   [self presentViewController:sheet animated:YES completion:nil];
+}
+
+#pragma mark - 三个具体动作（菜单、侧滑、长按共用）
+
+- (void)togglePin:(NSDictionary *)c {
+  BOOL pinned = [c[@"pinned"] boolValue];
+  NSError *e = nil;
+  [[DSBoxService shared] updateConversation:c[@"id"] patch:@{@"pinned": @(!pinned)} error:&e];
+  [self reload];
+}
+
+- (void)deleteConversation:(NSDictionary *)c {
+  NSError *e = nil;
+  [[DSBoxService shared] deleteConversation:c[@"id"] error:&e];
+  [self reload];
+  // 删的如果是当前正在看的那条，容器得换一个会话，否则聊天页悬空
+  if (self.onConversationDeleted) self.onConversationDeleted(c[@"id"]);
 }
 
 - (void)promptRename:(NSDictionary *)c {
@@ -530,48 +631,8 @@
   [a addAction:[UIAlertAction actionWithTitle:DSStrCancel style:UIAlertActionStyleCancel handler:nil]];
   [a addAction:[UIAlertAction actionWithTitle:DSStrDeleteSession
                                         style:UIAlertActionStyleDestructive
-                                      handler:^(UIAlertAction *x) {
-    NSError *e = nil;
-    [[DSBoxService shared] deleteConversation:c[@"id"] error:&e];
-    [ws reload];
-    // 删的如果是当前正在看的那条，容器得换一个会话，否则聊天页悬空
-    if (ws.onConversationDeleted) ws.onConversationDeleted(c[@"id"]);
-  }]];
+                                      handler:^(UIAlertAction *x) { [ws deleteConversation:c]; }]];
   [self presentViewController:a animated:YES completion:nil];
-}
-
-- (UISwipeActionsConfiguration *)tableView:(UITableView *)tableView
-trailingSwipeActionsConfigurationForRowAtIndexPath:(NSIndexPath *)indexPath {
-  NSArray *list = self.sections[indexPath.section][@"items"];
-  NSDictionary *c = list[indexPath.row];
-
-  __weak __typeof(self) weakSelf = self;
-  UIContextualAction *del = [UIContextualAction contextualActionWithStyle:UIContextualActionStyleDestructive
-      title:DSStrDeleteSession handler:^(UIContextualAction *action, UIView *source, void (^completion)(BOOL)) {
-    NSError *err = nil;
-    BOOL ok = [[DSBoxService shared] deleteConversation:c[@"id"] error:&err];
-    if (!ok) {
-      UIAlertController *a = [UIAlertController alertControllerWithTitle:err.localizedDescription
-          message:nil preferredStyle:UIAlertControllerStyleAlert];
-      [a addAction:[UIAlertAction actionWithTitle:DSStrOK style:UIAlertActionStyleDefault handler:nil]];
-      [weakSelf presentViewController:a animated:YES completion:nil];
-    }
-    [weakSelf reload];
-    completion(YES);
-  }];
-
-  UIContextualAction *pin = [UIContextualAction contextualActionWithStyle:UIContextualActionStyleNormal
-      title:[c[@"pinned"] boolValue] ? DSStrUnpinSession : DSStrPinSession
-      handler:^(UIContextualAction *a, UIView *s, void (^done)(BOOL)) {
-    NSError *e = nil;
-    [[DSBoxService shared] updateConversation:c[@"id"]
-                                        patch:@{@"pinned": @(![c[@"pinned"] boolValue])}
-                                        error:&e];
-    [weakSelf reload];
-    done(YES);
-  }];
-  pin.backgroundColor = [DSTheme labelTertiary];
-  return [UISwipeActionsConfiguration configurationWithActions:@[del, pin]];
 }
 
 @end
