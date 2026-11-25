@@ -202,15 +202,17 @@ static NSString *const kHeaderID = @"sessionHeader";
       [[UICollectionViewCompositionalLayout alloc] initWithSectionProvider:
         ^NSCollectionLayoutSection *(NSInteger section, id<NSCollectionLayoutEnvironment> env) {
     NSCollectionLayoutSize *itemSize =
-        [NSCollectionLayoutSize sizeWithWidthDimension:[NSCollectionLayoutDimension fractionalWidth:1.0]
+        [NSCollectionLayoutSize sizeWithWidthDimension:[NSCollectionLayoutDimension fractionalWidthDimension:1.0]
                                        heightDimension:[NSCollectionLayoutDimension absoluteDimension:DSSessionRowHeight]];
     NSCollectionLayoutItem *item = [NSCollectionLayoutItem itemWithLayoutSize:itemSize];
 
     NSCollectionLayoutSize *groupSize =
-        [NSCollectionLayoutSize sizeWithWidthDimension:[NSCollectionLayoutDimension fractionalWidth:1.0]
+        [NSCollectionLayoutSize sizeWithWidthDimension:[NSCollectionLayoutDimension fractionalWidthDimension:1.0]
                                        heightDimension:[NSCollectionLayoutDimension absoluteDimension:DSSessionRowHeight]];
+    // 用 `repeatingSubitem:count:` 而不是 `subitem:count:` —— 后者在 iOS 16 已废弃，
+    // 而我们的最低版本正好是 16，没必要为了兼容更老的系统留一条废弃路径。
     NSCollectionLayoutGroup *group =
-        [NSCollectionLayoutGroup verticalGroupWithLayoutSize:groupSize subitem:item count:1];
+        [NSCollectionLayoutGroup verticalGroupWithLayoutSize:groupSize repeatingSubitem:item count:1];
 
     NSCollectionLayoutSection *sec = [NSCollectionLayoutSection sectionWithGroup:group];
     // 组与组之间留一口气，靠分组头的上边距撑，不在分区底部再加 —— 否则
@@ -218,7 +220,7 @@ static NSString *const kHeaderID = @"sessionHeader";
     sec.contentInsets = NSDirectionalEdgeInsetsMake(0, 0, 0, 0);
 
     NSCollectionLayoutSize *headerSize =
-        [NSCollectionLayoutSize sizeWithWidthDimension:[NSCollectionLayoutDimension fractionalWidth:1.0]
+        [NSCollectionLayoutSize sizeWithWidthDimension:[NSCollectionLayoutDimension fractionalWidthDimension:1.0]
                                        heightDimension:[NSCollectionLayoutDimension estimatedDimension:30]];
     NSCollectionLayoutBoundarySupplementaryItem *header =
         [NSCollectionLayoutBoundarySupplementaryItem
